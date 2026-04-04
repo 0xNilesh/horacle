@@ -47,6 +47,7 @@ export default function HomeScreen() {
   const [liveStatus, setLiveStatus] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
   const [placeName, setPlaceName] = useState('');
+  const [liveCount, setLiveCount] = useState(0);
   const fadeIn = useRef(new Animated.Value(0)).current;
 
   const isLive = session?.status === 'live';
@@ -55,7 +56,32 @@ export default function HomeScreen() {
   useEffect(() => {
     Animated.timing(fadeIn, { toValue: 1, duration: 600, useNativeDriver: true }).start();
 
-    getUser().then(setUser);
+    getUser().then(async (u) => {
+      setUser(u);
+
+      // Check if there's an active live session in DB
+      if (u) {
+        try {
+          const { data: sessions } = await supabase
+            .from('live_sessions')
+            .select('*')
+            .eq('user_id', u.id)
+            .eq('status', 'live')
+            .gt('expires_at', new Date().toISOString())
+            .order('started_at', { ascending: false })
+            .limit(1);
+
+          if (sessions && sessions.length > 0) {
+            setSession(sessions[0]);
+            console.log('[Earn] Restored active session:', sessions[0].id);
+          } else {
+            console.log('[Earn] No active session found');
+          }
+        } catch (err) {
+          console.log('[Earn] Session check error:', err);
+        }
+      }
+    });
 
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -64,6 +90,8 @@ export default function HomeScreen() {
       if (loc) {
         setLocation(loc);
         reverseGeocode(loc.lat, loc.lng).then(setPlaceName);
+        // Count live people on the network
+        supabase.from('live_sessions').select('id', { count: 'exact', head: true }).eq('status', 'live').gt('expires_at', new Date().toISOString()).then(({ count }) => setLiveCount(count || 0));
       } else {
         setError('Could not get location');
       }
@@ -131,6 +159,13 @@ export default function HomeScreen() {
         return;
       }
 
+      // End any existing live sessions first
+      await supabase
+        .from('live_sessions')
+        .update({ status: 'ended' })
+        .eq('user_id', currentUser.id)
+        .eq('status', 'live');
+
       // Create live session in Supabase
       const expiresAt = new Date(Date.now() + DURATIONS[selectedDuration].minutes * 60000).toISOString();
       const { data: sessionId, error: sessionError } = await supabase.rpc('create_live_session', {
@@ -142,8 +177,11 @@ export default function HomeScreen() {
 
       if (sessionError) {
         setLiveStatus(`DB error: ${sessionError.message}`);
+        console.log('[Earn] Session create error:', sessionError);
         return;
       }
+
+      console.log('[Earn] Created session:', sessionId);
 
       // Also upsert current location
       await supabase.rpc('upsert_location', {
@@ -183,6 +221,21 @@ export default function HomeScreen() {
                 {isLive ? 'LIVE' : 'OFFLINE'}
               </Text>
             </View>
+          </View>
+
+          {/* Network status */}
+          <View style={s.networkBar}>
+            <View style={s.networkDots}>
+              {Array.from({ length: Math.min(liveCount, 8) }).map((_, i) => (
+                <View key={i} style={[s.networkDot, { opacity: 0.4 + (i * 0.08) }]} />
+              ))}
+              {liveCount === 0 && <View style={[s.networkDot, { backgroundColor: 'rgba(255,255,255,0.1)' }]} />}
+            </View>
+            <Text style={s.networkText}>
+              {liveCount > 0
+                ? `${liveCount} ${liveCount === 1 ? 'person' : 'people'} live on the network`
+                : 'No one live yet — be the first!'}
+            </Text>
           </View>
 
           {/* Stats */}
@@ -443,6 +496,17 @@ const s = StyleSheet.create({
   },
   statusLabel: { fontSize: 10, fontFamily: 'SpaceMono', color: 'rgba(255,255,255,0.3)', letterSpacing: 1.5 },
   statusLabelLive: { color: '#a78bfa' },
+
+  networkBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16,
+    padding: 12, borderRadius: 12,
+    backgroundColor: 'rgba(167,139,250,0.04)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.08)',
+  },
+  networkDots: { flexDirection: 'row', gap: 3 },
+  networkDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: '#a78bfa',
+  },
+  networkText: { color: 'rgba(255,255,255,0.35)', fontSize: 12, flex: 1 },
 
   statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
   statCard: {

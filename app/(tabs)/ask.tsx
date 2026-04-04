@@ -221,11 +221,7 @@ export default function AskScreen() {
                 {searching && <Text style={s.searchingText}>Searching...</Text>}
 
                 {selectedLocation && (
-                  <TouchableOpacity style={s.selectedPlace} onPress={() => { setSelectedLocation(null); setSearchText(''); }}>
-                    <Text style={s.selectedPlaceText}>📍 {selectedLocation.name}</Text>
-                    <Text style={s.selectedPlaceCoords}>{selectedLocation.lat.toFixed(5)}, {selectedLocation.lng.toFixed(5)}</Text>
-                    <Text style={s.changePlaceText}>tap to change</Text>
-                  </TouchableOpacity>
+                  <SelectedPlaceCard location={selectedLocation} onClear={() => { setSelectedLocation(null); setSearchText(''); }} />
                 )}
 
                 {searchResults.length > 0 && !selectedLocation && (
@@ -399,6 +395,43 @@ export default function AskScreen() {
   );
 }
 
+// Shows selected place with nearby people count
+function SelectedPlaceCard({ location, onClear }: { location: GeoResult; onClear: () => void }) {
+  const [nearbyCount, setNearbyCount] = useState(0);
+
+  useEffect(() => {
+    supabase.rpc('find_live_responders', {
+      p_lng: location.lng,
+      p_lat: location.lat,
+      p_radius_m: 5000,
+    }).then(({ data }) => {
+      setNearbyCount(data?.length || 0);
+    });
+  }, [location]);
+
+  return (
+    <TouchableOpacity style={s.selectedPlace} onPress={onClear}>
+      <Text style={s.selectedPlaceText}>📍 {location.name}</Text>
+      <Text style={s.selectedPlaceCoords}>{location.lat.toFixed(5)}, {location.lng.toFixed(5)}</Text>
+      <View style={s.nearbyRow}>
+        {nearbyCount > 0 ? (
+          <>
+            <View style={s.nearbyDots}>
+              {Array.from({ length: Math.min(nearbyCount, 5) }).map((_, i) => (
+                <View key={i} style={s.nearbyDot} />
+              ))}
+            </View>
+            <Text style={s.nearbyText}>{nearbyCount} {nearbyCount === 1 ? 'person' : 'people'} nearby</Text>
+          </>
+        ) : (
+          <Text style={s.nearbyNone}>No one live here yet — question will be posted for later</Text>
+        )}
+      </View>
+      <Text style={s.changePlaceText}>tap to change</Text>
+    </TouchableOpacity>
+  );
+}
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   scroll: { flex: 1, padding: 20, paddingTop: 52 },
@@ -439,7 +472,12 @@ const s = StyleSheet.create({
   },
   selectedPlaceText: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
   selectedPlaceCoords: { color: 'rgba(255,255,255,0.2)', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 3 },
-  changePlaceText: { color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 4 },
+  nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  nearbyDots: { flexDirection: 'row', gap: 3 },
+  nearbyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#a78bfa' },
+  nearbyText: { color: 'rgba(167,139,250,0.7)', fontSize: 12, fontWeight: '600' },
+  nearbyNone: { color: 'rgba(255,255,255,0.2)', fontSize: 11 },
+  changePlaceText: { color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 6 },
 
   resultsWrap: {
     marginTop: 6, borderRadius: 10, overflow: 'hidden',
