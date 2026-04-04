@@ -138,6 +138,9 @@ export default function VerifyScreen() {
 
   return (
     <View style={s.container}>
+      <View style={s.bgBlob1} />                                                                                      
+      <View style={s.bgBlob2} />
+      
       {/* Center */}
       <Animated.View style={[s.center, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
         <FloatingOrb />
