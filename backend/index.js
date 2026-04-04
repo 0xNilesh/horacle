@@ -176,6 +176,30 @@ app.post('/api/ask', async (req, res) => {
       p_lng: lng, p_lat: lat, p_radius_m: 300,
     });
 
+    // Send push notifications
+    if (responders?.length > 0) {
+      const messages = responders
+        .filter(r => r.push_token)
+        .map(r => ({
+          to: r.push_token,
+          title: '💰 Quick $0.05',
+          body: question.length > 80 ? question.slice(0, 77) + '...' : question,
+          data: { queryId, type: 'query' },
+          sound: 'default',
+          priority: 'high',
+        }));
+
+      if (messages.length > 0) {
+        console.log(`[Push] Sending to ${messages.length} responders`);
+        fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(messages),
+        }).catch(err => console.log('[Push] Error:', err.message));
+      }
+    }
+
+    console.log(`[Ask Free] Query ${queryId}, ${responders?.length || 0} responders`);
     res.json({ queryId, responders: responders?.length || 0, paid: false });
   } catch (err) {
     res.status(500).json({ error: err.message });

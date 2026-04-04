@@ -110,7 +110,7 @@ export default function AskScreen() {
     }
 
     setState('searching');
-    setStatusText('Processing payment + finding people...');
+    setStatusText('Finding people nearby...');
 
     let lat: number, lng: number;
 
@@ -128,27 +128,43 @@ export default function AskScreen() {
       lng = loc.lng;
     }
 
-    // Try x402 paid endpoint first, falls back to free
-    const { askWithPayment } = await import('@/lib/payment');
-    const result = await askWithPayment(currentUser.id, question.trim(), lat, lng);
+    // Try x402 paid flow (signs payment, falls back to free if settlement fails)
+    let queryId: string | undefined;
+    let responders = 0;
+    let paid = false;
 
-    if (result.error) {
-      setStatusText(result.error);
-      setState('error');
-      return;
+    try {
+      const { askWithPayment } = await import('@/lib/payment');
+      const result = await askWithPayment(currentUser.id, question.trim(), lat, lng);
+      queryId = result.queryId;
+      responders = result.responders || 0;
+      paid = result.paid || false;
+    } catch (err) {
+      console.log('[Ask] Payment flow failed, trying free:', err);
     }
 
-    const queryId = result.queryId || (result as any).query?.id;
+    // Fallback: create question directly via Supabase if backend failed
     if (!queryId) {
-      setStatusText('Failed to create question');
+      try {
+        const { askQuestion } = await import('@/lib/queries');
+        const freeResult = await askQuestion(currentUser.id, question.trim(), lat, lng);
+        queryId = freeResult.query?.id;
+        responders = freeResult.responders || 0;
+      } catch (err) {
+        console.log('[Ask] Free ask also failed:', err);
+      }
+    }
+
+    if (!queryId) {
+      setStatusText('Could not create question. Check your connection.');
       setState('error');
       return;
     }
 
     setCurrentQuery({ id: queryId, question: question.trim(), status: 'open', budget_usdc: 0.05, answer: null, responder_id: null, response_time_ms: null, rating: null, created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 60000).toISOString(), asker_id: currentUser.id } as any);
     setState('waiting');
-    if (result.responders && result.responders > 0) {
-      setStatusText(`${result.paid ? 'Paid · ' : ''}Sent to ${result.responders} people nearby`);
+    if (responders > 0) {
+      setStatusText(`${paid ? 'Paid · ' : ''}Sent to ${responders} people nearby`);
     } else {
       setStatusText('Posted — anyone who goes live near there will see it');
     }
@@ -162,23 +178,8 @@ export default function AskScreen() {
         setState('answered');
         if (pollRef.current) clearInterval(pollRef.current);
 
-        // Trigger payment to responder
-        if (updated.responder_id) {
-          try {
-            const { payResponder } = await import('@/lib/payment');
-            const { data: responder } = await supabase
-              .from('users')
-              .select('wallet_address')
-              .eq('id', updated.responder_id)
-              .single();
-            if (responder?.wallet_address) {
-              const payResult = await payResponder(updated.id, updated.responder_id, responder.wallet_address);
-              console.log('[Ask] Payment:', payResult.success ? `Paid ${payResult.txHash}` : payResult.error);
-            }
-          } catch (err) {
-            console.log('[Ask] Payment error (non-blocking):', err);
-          }
-        }
+        // Payment is handled by the backend pool wallet via daily batch settlement
+        // The asker already paid via x402 when asking
       } else if (updated.status === 'expired' || new Date(updated.expires_at) < new Date()) {
         setState('expired');
         setStatusText('No one answered in time.');

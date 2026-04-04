@@ -57,6 +57,17 @@ export default function HomeScreen() {
     Animated.timing(fadeIn, { toValue: 1, duration: 600, useNativeDriver: true }).start();
 
     getUser().then(async (u) => {
+      if (u) {
+        // Refresh stats from Supabase (SecureStore might be stale)
+        const { data: freshUser } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', u.id)
+          .single();
+        if (freshUser) {
+          u = { ...u, reputation_score: freshUser.reputation_score, total_earned_usdc: freshUser.total_earned_usdc, total_queries_answered: freshUser.total_queries_answered };
+        }
+      }
       setUser(u);
 
       // Check if there's an active live session in DB

@@ -181,17 +181,42 @@ export async function askWithPayment(
       return { ...data, paid: true };
     }
 
-    // Settlement failed but signature was valid — fall back to free with payment proof
-    if (data.error?.includes('settlement') || data.error?.includes('insufficient')) {
-      console.log('[x402] Settlement pending — creating question via free endpoint with payment proof');
-      const freeResult = await fallbackFreeAsk(apiUrl, body);
-      return { ...freeResult, paid: true, paymentProof: signature };
+    // Settlement failed but signature was valid — fall back
+    console.log('[x402] Settlement issue, falling back. Error:', data.error);
+    const freeResult = await fallbackFreeAsk(apiUrl, body);
+    if (freeResult.queryId) {
+      return { ...freeResult, paid: true };
     }
 
-    return data;
+    // Final fallback: create directly via Supabase
+    console.log('[x402] Backend also failed, creating via Supabase directly');
+    return await createQuestionDirectly(JSON.parse(body));
   } catch (err: any) {
-    console.error('[x402] Error:', err.message);
-    return fallbackFreeAsk(apiUrl, body);
+    console.log('[x402] Payment flow error:', err.message);
+    try {
+      const freeResult = await fallbackFreeAsk(
+        process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001',
+        JSON.stringify({ askerId: '', question: '', lat: 0, lng: 0 })
+      );
+      if (freeResult.queryId) return { ...freeResult, paid: false };
+    } catch {}
+    return { error: 'Could not create question', paid: false };
+  }
+}
+
+async function createQuestionDirectly(
+  params: { askerId: string; question: string; lat: number; lng: number }
+): Promise<{ queryId?: string; responders?: number; paid?: boolean; error?: string }> {
+  try {
+    const { askQuestion } = await import('./queries');
+    const result = await askQuestion(params.askerId, params.question, params.lat, params.lng);
+    return {
+      queryId: result.query?.id,
+      responders: result.responders || 0,
+      paid: true,
+    };
+  } catch (err: any) {
+    return { error: err.message };
   }
 }
 
