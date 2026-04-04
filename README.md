@@ -1,12 +1,16 @@
-# Horacle — Real-Time Intelligence from Verified Humans
+# Horacle — The Human Oracle
 
-> Ask anything about any location. Get answers from people physically there — in seconds, for cents.
+> Every human is an oracle. Your knowledge, your location, your eyes — monetized in real-time.
 
 ## What is Horacle?
 
-Horacle is a real-time intelligence marketplace where verified humans earn micropayments by answering questions about locations they're physically at.
+**Horacle = Human + Oracle.** In a world of AI hallucinations and stale reviews, the most reliable source of truth is a verified human who's physically there.
 
-**No app answers "what's happening at a place right now."** Google reviews are months old. ChatGPT hallucinates. Horacle fixes this by connecting you with verified humans who are at the location RIGHT NOW.
+Horacle turns every person into a real-time oracle. Go Live at any location, and you become the ground truth for that place. When someone asks "Is the beach crowded?" or "Did the food truck show up?" — you're the oracle. You answer in 10 seconds, you earn $0.05. The knowledge lives in you, not in a database.
+
+**The internet has data oracles. Blockchains have price oracles. Horacle is the human oracle.**
+
+No app answers "what's happening at a place right now." Google reviews are months old. ChatGPT guesses. Horacle connects you with verified humans — real oracles — who are at the location RIGHT NOW. Verified by World ID. Paid via Circle nanopayments. Gasless.
 
 ### How It Works
 
@@ -186,5 +190,9 @@ horacle/
     ├── setup-db.sql           # Full PostGIS schema
     └── generate-wallets.ts    # Pool wallet generator
 ```
+
+---
+
+*"The internet has data oracles. Blockchains have price oracles. We built the human oracle."*
 
 ## Built at ETHGlobal Cannes 2026
