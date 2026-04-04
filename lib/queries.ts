@@ -171,7 +171,11 @@ export async function answerQuery(
     return { success: false, error: updateError.message };
   }
 
-  // Update responder stats
+  // Payment happens when the ASKER's app gets the answer
+  // (the asker's wallet signs the tx, not the responder's)
+  // This is triggered from the Ask tab when polling detects an answer
+
+  // Update responder stats (even if payment fails)
   await supabase.rpc('increment_responder_stats', { p_user_id: responderId });
 
   return { success: true };

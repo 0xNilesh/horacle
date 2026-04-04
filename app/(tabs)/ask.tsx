@@ -109,15 +109,8 @@ export default function AskScreen() {
       return;
     }
 
-    // Check wallet (will be needed for payment in Phase 5)
-    // For now just warn, don't block
-    const hasWallet = await hasRealWallet();
-    if (!hasWallet) {
-      console.log('[Ask] No real wallet connected — proceeding anyway (payment will fail later)');
-    }
-
     setState('searching');
-    setStatusText('Finding people nearby...');
+    setStatusText('Processing payment + finding people...');
 
     let lat: number, lng: number;
 
@@ -135,7 +128,9 @@ export default function AskScreen() {
       lng = loc.lng;
     }
 
-    const result = await askQuestion(currentUser.id, question.trim(), lat, lng);
+    // Try x402 paid endpoint first, falls back to free
+    const { askWithPayment } = await import('@/lib/payment');
+    const result = await askWithPayment(currentUser.id, question.trim(), lat, lng);
 
     if (result.error) {
       setStatusText(result.error);
@@ -143,22 +138,47 @@ export default function AskScreen() {
       return;
     }
 
-    setCurrentQuery(result.query!);
+    const queryId = result.queryId || (result as any).query?.id;
+    if (!queryId) {
+      setStatusText('Failed to create question');
+      setState('error');
+      return;
+    }
+
+    setCurrentQuery({ id: queryId, question: question.trim(), status: 'open', budget_usdc: 0.05, answer: null, responder_id: null, response_time_ms: null, rating: null, created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 30 * 60000).toISOString(), asker_id: currentUser.id } as any);
     setState('waiting');
     if (result.responders && result.responders > 0) {
-      setStatusText(`Sent to ${result.responders} people nearby`);
+      setStatusText(`${result.paid ? 'Paid · ' : ''}Sent to ${result.responders} people nearby`);
     } else {
-      setStatusText('No one nearby right now — your question is posted and anyone who goes live near there will see it');
+      setStatusText('Posted — anyone who goes live near there will see it');
     }
 
     pollRef.current = setInterval(async () => {
-      if (!result.query) return;
-      const updated = await pollQuery(result.query.id);
+      if (!queryId) return;
+      const updated = await pollQuery(queryId);
       if (!updated) return;
       if (updated.status === 'answered') {
         setCurrentQuery(updated);
         setState('answered');
         if (pollRef.current) clearInterval(pollRef.current);
+
+        // Trigger payment to responder
+        if (updated.responder_id) {
+          try {
+            const { payResponder } = await import('@/lib/payment');
+            const { data: responder } = await supabase
+              .from('users')
+              .select('wallet_address')
+              .eq('id', updated.responder_id)
+              .single();
+            if (responder?.wallet_address) {
+              const payResult = await payResponder(updated.id, updated.responder_id, responder.wallet_address);
+              console.log('[Ask] Payment:', payResult.success ? `Paid ${payResult.txHash}` : payResult.error);
+            }
+          } catch (err) {
+            console.log('[Ask] Payment error (non-blocking):', err);
+          }
+        }
       } else if (updated.status === 'expired' || new Date(updated.expires_at) < new Date()) {
         setState('expired');
         setStatusText('No one answered in time.');

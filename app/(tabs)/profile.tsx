@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, ScrollView, Image, TextInput } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Image, TextInput, Share } from 'react-native';
 import { Text, View } from 'react-native';
 import { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { reverseGeocode } from '@/lib/geocode';
 import { getCurrentLocation } from '@/lib/location';
 import { useDynamic, showDynamicAuth, dynamicClient } from '@/lib/dynamic';
 import { saveWalletAddress } from '@/lib/wallet';
+import { getUSDCBalance } from '@/lib/payment';
 import { router } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -19,12 +20,57 @@ export default function ProfileScreen() {
   const [queryCount, setQueryCount] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+  const [usdcBalance, setUsdcBalance] = useState('0');
+  const [depositing, setDepositing] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('1');
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [depositStatus, setDepositStatus] = useState('');
+  const [gatewayBalance, setGatewayBalance] = useState('');
 
   // Dynamic wallet
   const dynamicState = useDynamic();
   const connectedWallets = dynamicState?.wallets?.userWallets || [];
   const primaryWallet = dynamicState?.wallets?.primary;
   const walletAddress = primaryWallet?.address || connectedWallets?.[0]?.address;
+
+  // Fetch USDC balance + Gateway balance
+  useEffect(() => {
+    if (walletAddress) {
+      getUSDCBalance().then(setUsdcBalance);
+    }
+    // Fetch user's Gateway balance
+    if (walletAddress) {
+      (async () => {
+        try {
+          const { createPublicClient: createPC, http: httpT } = await import('viem');
+          const pc = createPC({
+            chain: { id: 4801, name: 'World Chain Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: ['https://worldchain-sepolia.g.alchemy.com/v2/aIjBlwgkuTtigyA192G1h'] } } },
+            transport: httpT(),
+          });
+          const USDC = '0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88';
+          const GATEWAY = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9';
+          const bal = await pc.readContract({
+            address: GATEWAY,
+            abi: [{
+              name: 'availableBalance',
+              type: 'function',
+              inputs: [
+                { name: 'token', type: 'address' },
+                { name: 'depositor', type: 'address' },
+              ],
+              outputs: [{ name: '', type: 'uint256' }],
+              stateMutability: 'view',
+            }],
+            functionName: 'availableBalance',
+            args: [USDC, walletAddress],
+          });
+          setGatewayBalance((Number(bal) / 1e6).toFixed(2));
+        } catch (err) {
+          console.log('[Profile] Gateway balance error:', err);
+        }
+      })();
+    }
+  }, [walletAddress]);
 
   // Auto-create embedded wallet if authenticated but no wallet
   useEffect(() => {
@@ -192,7 +238,138 @@ export default function ProfileScreen() {
               <Text style={s.walletLabel}>WALLET CONNECTED</Text>
               <View style={s.walletDot} />
             </View>
-            <Text style={s.walletAddress} numberOfLines={1}>{walletAddress}</Text>
+            <TouchableOpacity
+              style={s.walletCopyRow}
+              onPress={() => Share.share({ message: walletAddress })}
+            >
+              <Text style={s.walletAddress} numberOfLines={1}>{walletAddress}</Text>
+              <Text style={s.copyIcon}>📋</Text>
+            </TouchableOpacity>
+            <Text style={s.walletBalance}>{usdcBalance} USDC</Text>
+            {gatewayBalance && gatewayBalance !== '0' ? (
+              <Text style={s.gatewayBalance}>Gateway: {gatewayBalance} USDC</Text>
+            ) : null}
+            {/* Deposit button */}
+            {!showDeposit ? (
+              <TouchableOpacity style={s.depositBtn} onPress={() => setShowDeposit(true)}>
+                <Text style={s.depositBtnText}>Deposit to Gateway</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={s.depositForm}>
+                <Text style={s.depositLabel}>Amount (USDC)</Text>
+                <View style={s.depositRow}>
+                  {['1', '5', '10'].map((amt) => (
+                    <TouchableOpacity
+                      key={amt}
+                      style={[s.depositAmountBtn, depositAmount === amt && s.depositAmountActive]}
+                      onPress={() => setDepositAmount(amt)}
+                    >
+                      <Text style={[s.depositAmountText, depositAmount === amt && s.depositAmountTextActive]}>${amt}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={[s.depositConfirmBtn, depositing && { opacity: 0.5 }]}
+                  disabled={depositing}
+                  onPress={async () => {
+                    setDepositing(true);
+                    setDepositStatus('Sending USDC to Gateway...');
+                    try {
+                      const { payForQuestion } = await import('@/lib/payment');
+                      // Send USDC from Dynamic wallet to pool wallet
+                      const wallets = dynamicClient.wallets?.userWallets;
+                      if (!wallets?.length) {
+                        setDepositStatus('No wallet connected');
+                        setDepositing(false);
+                        return;
+                      }
+                      const wallet = wallets[0];
+                      const { encodeFunctionData, parseUnits } = await import('viem');
+                      const walletClient = await dynamicClient.viem.createWalletClient({ wallet });
+                      const poolWallet = process.env.EXPO_PUBLIC_POOL_WALLET;
+                      if (!poolWallet) {
+                        setDepositStatus('Pool wallet not configured');
+                        setDepositing(false);
+                        return;
+                      }
+                      const USDC = '0x66145f38cBAC35Ca6F1Dfb4914dF98F1614aeA88';
+                      const GATEWAY_WALLET = '0x0077777d7EBA4688BDeF3E311b846F25870A19B9';
+                      const amount = parseUnits(depositAmount, 6);
+
+                      // Step 1: Check allowance, approve if needed
+                      setDepositStatus('Checking approval...');
+                      const { createPublicClient: createPC, http: httpT } = await import('viem');
+                      const pc = createPC({
+                        chain: { id: 4801, name: 'World Chain Sepolia', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: ['https://worldchain-sepolia.g.alchemy.com/v2/aIjBlwgkuTtigyA192G1h'] } } },
+                        transport: httpT(),
+                      });
+                      const allowance = await pc.readContract({
+                        address: USDC,
+                        abi: [{ name: 'allowance', type: 'function', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' }],
+                        functionName: 'allowance',
+                        args: [wallet.address, GATEWAY_WALLET],
+                      });
+
+                      if (BigInt(allowance as any) < amount) {
+                        setDepositStatus('Step 1/2: Approving USDC...');
+                        const approveData = encodeFunctionData({
+                          abi: [{
+                            name: 'approve',
+                            type: 'function',
+                            inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+                            outputs: [{ name: '', type: 'bool' }],
+                          }],
+                          functionName: 'approve',
+                          args: [GATEWAY_WALLET, parseUnits('1000000', 6)], // approve max so they don't need to re-approve
+                        });
+                        await walletClient.sendTransaction({
+                          to: USDC,
+                          data: approveData,
+                          value: BigInt(0),
+                        });
+                      }
+
+                      // Step 2: Deposit into Gateway (token, value)
+                      setDepositStatus('Step 2/2: Depositing to Gateway...');
+                      const depositData = encodeFunctionData({
+                        abi: [{
+                          name: 'deposit',
+                          type: 'function',
+                          inputs: [
+                            { name: 'token', type: 'address' },
+                            { name: 'value', type: 'uint256' },
+                          ],
+                          outputs: [],
+                        }],
+                        functionName: 'deposit',
+                        args: [USDC, amount],
+                      });
+                      const txHash = await walletClient.sendTransaction({
+                        to: GATEWAY_WALLET,
+                        data: depositData,
+                        value: BigInt(0),
+                      });
+                      setDepositStatus(`Deposited $${depositAmount}! TX: ${(txHash as string).slice(0, 16)}...`);
+                      // Refresh balance
+                      const { getUSDCBalance } = await import('@/lib/payment');
+                      const newBal = await getUSDCBalance();
+                      setUsdcBalance(newBal);
+                    } catch (err: any) {
+                      setDepositStatus(`Error: ${err.message}`);
+                    }
+                    setDepositing(false);
+                    setTimeout(() => setShowDeposit(false), 3000);
+                  }}
+                >
+                  <Text style={s.depositConfirmText}>{depositing ? 'Sending...' : `Deposit $${depositAmount} USDC`}</Text>
+                </TouchableOpacity>
+                {depositStatus ? <Text style={s.depositStatusText}>{depositStatus}</Text> : null}
+                <TouchableOpacity onPress={() => { setShowDeposit(false); setDepositStatus(''); }}>
+                  <Text style={s.depositCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TouchableOpacity
               style={s.disconnectBtn}
               onPress={async () => {
@@ -333,7 +510,33 @@ const s = StyleSheet.create({
   walletHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   walletLabel: { fontSize: 10, color: 'rgba(167,139,250,0.6)', letterSpacing: 1.5, fontFamily: 'SpaceMono' },
   walletDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#a78bfa' },
-  walletAddress: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: 'SpaceMono', marginBottom: 8 },
+  walletCopyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  walletAddress: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: 'SpaceMono', flex: 1 },
+  copyIcon: { fontSize: 14 },
+  walletBalance: { fontSize: 18, color: '#a78bfa', fontWeight: '800', fontFamily: 'SpaceMono', marginBottom: 2 },
+  gatewayBalance: { fontSize: 12, color: 'rgba(167,139,250,0.5)', fontFamily: 'SpaceMono', marginBottom: 8 },
+  depositBtn: {
+    paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginBottom: 10,
+    backgroundColor: 'rgba(167,139,250,0.12)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.25)',
+  },
+  depositBtnText: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
+  depositForm: { marginBottom: 10, gap: 10 },
+  depositLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
+  depositRow: { flexDirection: 'row', gap: 8 },
+  depositAmountBtn: {
+    flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  depositAmountActive: { backgroundColor: 'rgba(167,139,250,0.15)', borderColor: 'rgba(167,139,250,0.3)' },
+  depositAmountText: { color: 'rgba(255,255,255,0.3)', fontSize: 15, fontWeight: '700' },
+  depositAmountTextActive: { color: '#a78bfa' },
+  depositConfirmBtn: {
+    paddingVertical: 14, borderRadius: 10, alignItems: 'center', backgroundColor: '#7c3aed',
+  },
+  depositConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  depositStatusText: { color: 'rgba(167,139,250,0.6)', fontSize: 11, fontFamily: 'SpaceMono', textAlign: 'center' },
+  depositCancelText: { color: 'rgba(255,255,255,0.2)', fontSize: 12, textAlign: 'center' },
+
   disconnectBtn: { alignSelf: 'flex-start' },
   disconnectText: { color: 'rgba(255,100,100,0.6)', fontSize: 12 },
   connectWalletBtn: {
