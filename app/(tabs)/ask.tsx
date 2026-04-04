@@ -210,7 +210,6 @@ export default function AskScreen() {
 
   return (
     <View style={s.container}>
-      <LinearGradient colors={['#000', '#0a0015', '#000']} style={StyleSheet.absoluteFill} />
 
       {/* Input state */}
       {state === 'input' && (
@@ -332,12 +331,9 @@ export default function AskScreen() {
             activeOpacity={0.85}
             disabled={!question.trim() || (locationMode === 'search' && !selectedLocation)}
           >
-            <LinearGradient
-              colors={question.trim() ? ['#a78bfa', '#7c3aed'] : ['#333', '#222']}
-              style={s.askBtnGradient}
-            >
+            <View style={s.askBtnGradient}>
               <Text style={s.askBtnText}>Ask · $0.05</Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
 
           {/* Recent questions */}
@@ -497,155 +493,100 @@ function SelectedPlaceCard({ location, onClear }: { location: GeoResult; onClear
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   scroll: { flex: 1, padding: 20, paddingTop: 52 },
 
-  heading: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  subheading: { fontSize: 13, color: 'rgba(255,255,255,0.35)', marginTop: 4, marginBottom: 24 },
+  heading: { fontSize: 26, fontWeight: '700', color: '#1A1A2E' },
+  subheading: { fontSize: 13, color: '#A5A4B4', marginTop: 4, marginBottom: 24 },
 
-  label: { fontSize: 10, color: 'rgba(255,255,255,0.25)', letterSpacing: 2, fontFamily: 'SpaceMono', marginBottom: 10 },
+  label: { fontSize: 11, color: '#A5A4B4', letterSpacing: 1, marginBottom: 8 },
 
-  // Location
   locationSection: { marginBottom: 20 },
-  locationToggle: {
-    flexDirection: 'row', borderRadius: 10, overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.04)', padding: 3,
-  },
+  locationToggle: { flexDirection: 'row', borderRadius: 10, backgroundColor: '#F5F5F7', padding: 3 },
   toggleBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
-  toggleActive: { backgroundColor: 'rgba(167,139,250,0.15)' },
-  toggleText: { color: 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: '600' },
-  toggleTextActive: { color: '#a78bfa' },
+  toggleActive: { backgroundColor: '#FFFFFF', shadowColor: '#7C5CFC', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  toggleText: { color: '#A5A4B4', fontSize: 13, fontWeight: '600' },
+  toggleTextActive: { color: '#7C5CFC' },
 
-  currentLocInfo: {
-    marginTop: 10, padding: 12, borderRadius: 10,
-    backgroundColor: 'rgba(167,139,250,0.06)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.12)',
-  },
-  currentLocName: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
-  currentLocCoords: { color: 'rgba(255,255,255,0.2)', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 3 },
+  currentLocInfo: { marginTop: 10, padding: 12, borderRadius: 10, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  currentLocName: { color: '#7C5CFC', fontSize: 14, fontWeight: '600' },
+  currentLocCoords: { color: '#A5A4B4', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 3 },
 
   searchWrap: { marginTop: 10 },
-  searchInput: {
-    color: '#fff', fontSize: 15, padding: 14, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.15)',
-  },
-  searchingText: { color: 'rgba(167,139,250,0.5)', fontSize: 12, marginTop: 6, marginLeft: 4 },
+  searchInput: { color: '#1A1A2E', fontSize: 15, padding: 14, borderRadius: 12, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  searchingText: { color: '#7C5CFC', fontSize: 12, marginTop: 6 },
 
-  selectedPlace: {
-    marginTop: 10, padding: 12, borderRadius: 10,
-    backgroundColor: 'rgba(167,139,250,0.08)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)',
-  },
-  selectedPlaceText: { color: '#a78bfa', fontSize: 14, fontWeight: '600' },
-  selectedPlaceCoords: { color: 'rgba(255,255,255,0.2)', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 3 },
+  selectedPlace: { marginTop: 10, padding: 12, borderRadius: 10, backgroundColor: '#EDE8FF', borderWidth: 1, borderColor: '#D8D0F5' },
+  selectedPlaceText: { color: '#5B3FD4', fontSize: 14, fontWeight: '600' },
+  selectedPlaceCoords: { color: '#A5A4B4', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 3 },
   nearbyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
   nearbyDots: { flexDirection: 'row', gap: 3 },
-  nearbyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#a78bfa' },
-  nearbyText: { color: 'rgba(167,139,250,0.7)', fontSize: 12, fontWeight: '600' },
-  nearbyNone: { color: 'rgba(255,255,255,0.2)', fontSize: 11 },
-  changePlaceText: { color: 'rgba(255,255,255,0.15)', fontSize: 10, marginTop: 6 },
+  nearbyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#7C5CFC' },
+  nearbyText: { color: '#7C5CFC', fontSize: 12, fontWeight: '600' },
+  nearbyNone: { color: '#A5A4B4', fontSize: 11 },
+  changePlaceText: { color: '#CDCDD8', fontSize: 10, marginTop: 6 },
 
-  resultsWrap: {
-    marginTop: 6, borderRadius: 10, overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  resultItem: {
-    padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)',
-  },
-  resultText: { color: 'rgba(255,255,255,0.6)', fontSize: 14 },
-  resultCoords: { color: 'rgba(255,255,255,0.15)', fontSize: 10, fontFamily: 'SpaceMono', marginTop: 3 },
+  resultsWrap: { marginTop: 6, borderRadius: 10, overflow: 'hidden', backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  resultItem: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#EEEDF5' },
+  resultText: { color: '#1A1A2E', fontSize: 14 },
+  resultCoords: { color: '#A5A4B4', fontSize: 10, fontFamily: 'SpaceMono', marginTop: 3 },
 
-  // Question
   questionSection: { marginBottom: 16 },
-  inputCard: {
-    borderRadius: 14, padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.12)',
-  },
-  textInput: { color: '#fff', fontSize: 17, minHeight: 70, textAlignVertical: 'top', lineHeight: 24 },
-  charCount: { color: 'rgba(255,255,255,0.15)', fontSize: 11, textAlign: 'right', marginTop: 4, fontFamily: 'SpaceMono' },
+  inputCard: { borderRadius: 14, padding: 14, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  textInput: { color: '#1A1A2E', fontSize: 17, minHeight: 70, textAlignVertical: 'top', lineHeight: 24 },
+  charCount: { color: '#CDCDD8', fontSize: 11, textAlign: 'right', marginTop: 4, fontFamily: 'SpaceMono' },
 
-  // Examples
   examplesWrap: { marginBottom: 20 },
-  examplePill: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginBottom: 6,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  exampleText: { color: 'rgba(255,255,255,0.4)', fontSize: 13 },
+  examplePill: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10, marginBottom: 6, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  exampleText: { color: '#6E6D7A', fontSize: 13 },
 
-  // Ask button
-  askBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 24 },
-  askBtnDisabled: { opacity: 0.5 },
-  askBtnGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 16 },
-  askBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  askBtn: { borderRadius: 14, overflow: 'hidden', marginBottom: 24 },
+  askBtnDisabled: { opacity: 0.4 },
+  askBtnGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 14, backgroundColor: '#7C5CFC' },
+  askBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
-  // Center states
-  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 20 },
-  centerText: { color: 'rgba(255,255,255,0.5)', fontSize: 15, textAlign: 'center' },
+  centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 20 },
+  centerText: { color: '#6E6D7A', fontSize: 15, textAlign: 'center' },
 
-  // Waiting
   waitingDots: { flexDirection: 'row', gap: 8 },
-  waitDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(167,139,250,0.3)' },
-  waitDot1: { backgroundColor: '#a78bfa' },
-  waitDot2: { backgroundColor: 'rgba(167,139,250,0.6)' },
-  waitDot3: { backgroundColor: 'rgba(167,139,250,0.3)' },
-  waitingTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
-  waitingSub: { color: 'rgba(167,139,250,0.6)', fontSize: 13 },
-  waitingQuestion: { color: 'rgba(255,255,255,0.3)', fontSize: 14, fontStyle: 'italic', textAlign: 'center', paddingHorizontal: 20, marginTop: 8 },
-  backBtn: {
-    marginTop: 24, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(167,139,250,0.25)',
-  },
-  backBtnText: { color: '#a78bfa', fontWeight: '600', fontSize: 14 },
-  waitingHint: { color: 'rgba(255,255,255,0.15)', fontSize: 11, marginTop: 8 },
+  waitDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#D8D0F5' },
+  waitDot1: { backgroundColor: '#7C5CFC' },
+  waitDot2: { backgroundColor: '#A890FF' },
+  waitDot3: { backgroundColor: '#D8D0F5' },
+  waitingTitle: { color: '#1A1A2E', fontSize: 20, fontWeight: '700' },
+  waitingSub: { color: '#7C5CFC', fontSize: 13 },
+  waitingQuestion: { color: '#A5A4B4', fontSize: 14, fontStyle: 'italic', textAlign: 'center', paddingHorizontal: 20, marginTop: 8 },
+  backBtn: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12, borderWidth: 1, borderColor: '#EEEDF5' },
+  backBtnText: { color: '#7C5CFC', fontWeight: '600', fontSize: 14 },
+  waitingHint: { color: '#CDCDD8', fontSize: 11, marginTop: 8 },
 
-  // Answer
-  answerBadge: {
-    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8,
-    backgroundColor: 'rgba(167,139,250,0.15)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.3)',
-    marginTop: 20, marginBottom: 16,
-  },
-  answerBadgeText: { color: '#a78bfa', fontSize: 10, fontWeight: '800', letterSpacing: 2, fontFamily: 'SpaceMono' },
-  answerQuestion: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontStyle: 'italic', marginBottom: 16 },
-  answerCard: {
-    padding: 20, borderRadius: 16,
-    backgroundColor: 'rgba(167,139,250,0.06)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.15)',
-    marginBottom: 20,
-  },
-  answerText: { color: '#fff', fontSize: 17, lineHeight: 26 },
-  answerMeta: { color: 'rgba(167,139,250,0.5)', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 12 },
+  answerBadge: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, backgroundColor: '#EEFBF1', marginTop: 20, marginBottom: 16 },
+  answerBadgeText: { color: '#34C759', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  answerQuestion: { color: '#A5A4B4', fontSize: 14, fontStyle: 'italic', marginBottom: 16 },
+  answerCard: { padding: 18, borderRadius: 14, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5', marginBottom: 20 },
+  answerText: { color: '#1A1A2E', fontSize: 16, lineHeight: 24 },
+  answerMeta: { color: '#A5A4B4', fontSize: 11, fontFamily: 'SpaceMono', marginTop: 10 },
 
   rateRow: { marginBottom: 20 },
-  rateLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 13, marginBottom: 10 },
+  rateLabel: { color: '#6E6D7A', fontSize: 13, marginBottom: 10 },
   rateBtns: { flexDirection: 'row', gap: 10 },
-  rateBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
-  },
-  rateBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  ratedText: { color: 'rgba(167,139,250,0.6)', fontSize: 13, textAlign: 'center', marginBottom: 20 },
+  rateBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  rateBtnText: { color: '#1A1A2E', fontSize: 15, fontWeight: '600' },
+  ratedText: { color: '#34C759', fontSize: 13, textAlign: 'center', marginBottom: 20 },
 
   newBtn: { alignSelf: 'center', padding: 12 },
-  newBtnText: { color: 'rgba(167,139,250,0.7)', fontSize: 14, fontWeight: '600' },
+  newBtnText: { color: '#7C5CFC', fontSize: 14, fontWeight: '600' },
 
-  // Error / retry
-  errorText: { color: '#f87171', fontSize: 14, textAlign: 'center' },
-  retryBtn: {
-    paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-  },
-  retryText: { color: '#fff', fontWeight: '600' },
+  errorText: { color: '#FF3B30', fontSize: 14, textAlign: 'center' },
+  retryBtn: { paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12, borderWidth: 1, borderColor: '#EEEDF5' },
+  retryText: { color: '#1A1A2E', fontWeight: '600' },
 
-  // Recent
   recentSection: { marginTop: 8 },
-  recentCard: {
-    padding: 14, borderRadius: 12, marginBottom: 10,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  recentQuestion: { color: 'rgba(255,255,255,0.6)', fontSize: 14, marginBottom: 8 },
-  recentAnswerWrap: {
-    padding: 10, borderRadius: 8, backgroundColor: 'rgba(167,139,250,0.06)',
-    borderWidth: 1, borderColor: 'rgba(167,139,250,0.1)',
-  },
-  recentAnswerLabel: { fontSize: 9, color: 'rgba(167,139,250,0.5)', letterSpacing: 1.5, fontFamily: 'SpaceMono', marginBottom: 4 },
-  recentAnswer: { color: '#fff', fontSize: 14, lineHeight: 20 },
-  recentPending: { color: 'rgba(167,139,250,0.5)', fontSize: 12 },
-  recentExpired: { color: 'rgba(255,255,255,0.2)', fontSize: 12 },
+  recentCard: { padding: 14, borderRadius: 12, marginBottom: 10, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  recentQuestion: { color: '#1A1A2E', fontSize: 14, marginBottom: 8 },
+  recentAnswerWrap: { padding: 10, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#EEEDF5' },
+  recentAnswerLabel: { fontSize: 10, color: '#A5A4B4', letterSpacing: 1, marginBottom: 4 },
+  recentAnswer: { color: '#1A1A2E', fontSize: 14, lineHeight: 20 },
+  recentPending: { color: '#FF9500', fontSize: 12 },
+  recentExpired: { color: '#A5A4B4', fontSize: 12 },
 });

@@ -1,7 +1,6 @@
 import { StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, View } from 'react-native';
 import { useState, useEffect } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { getUser, type HoracleUser } from '@/lib/auth';
 
@@ -16,160 +15,84 @@ export default function ActivityScreen() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    getUser().then((u) => {
-      setUser(u);
-      if (u) fetchAll(u.id);
-    });
+    getUser().then((u) => { setUser(u); if (u) fetchAll(u.id); });
     const tickInterval = setInterval(() => setTick(t => t + 1), 1000);
     return () => clearInterval(tickInterval);
   }, []);
 
   const fetchAll = async (userId: string) => {
     setLoading(true);
-
-    // My questions (as asker)
-    // Expire stale queries first
     await supabase.rpc('expire_stale');
-
-    const { data: asked } = await supabase
-      .from('queries')
-      .select('*')
-      .eq('asker_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    // My answers (as responder)
-    const { data: answered } = await supabase
-      .from('queries')
-      .select('*')
-      .eq('responder_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
+    const { data: asked } = await supabase.from('queries').select('*').eq('asker_id', userId).order('created_at', { ascending: false }).limit(20);
+    const { data: answered } = await supabase.from('queries').select('*').eq('responder_id', userId).order('created_at', { ascending: false }).limit(20);
     if (asked) setMyQuestions(asked);
     if (answered) setMyAnswers(answered);
     setLoading(false);
   };
 
-  const refresh = () => { if (user) fetchAll(user.id); };
-
-  const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+  const timeAgo = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'now'; if (m < 60) return `${m}m`; const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h`; return `${Math.floor(h / 24)}d`;
   };
 
   const items = tab === 'asked' ? myQuestions : myAnswers;
 
   return (
     <View style={s.container}>
-      <LinearGradient colors={['#000', '#0a0015', '#000']} style={StyleSheet.absoluteFill} />
-
       <View style={s.header}>
         <Text style={s.heading}>Activity</Text>
-        <TouchableOpacity onPress={refresh}>
-          <Text style={s.refreshBtn}>↻ Refresh</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => { if (user) fetchAll(user.id); }}><Text style={s.refreshBtn}>Refresh</Text></TouchableOpacity>
       </View>
 
-      {/* Tab switcher */}
       <View style={s.tabRow}>
-        <TouchableOpacity
-          style={[s.tab, tab === 'asked' && s.tabActive]}
-          onPress={() => setTab('asked')}
-        >
-          <Text style={[s.tabText, tab === 'asked' && s.tabTextActive]}>
-            My Questions ({myQuestions.length})
-          </Text>
+        <TouchableOpacity style={[s.tab, tab === 'asked' && s.tabActive]} onPress={() => setTab('asked')}>
+          <Text style={[s.tabText, tab === 'asked' && s.tabTextActive]}>Questions ({myQuestions.length})</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.tab, tab === 'answered' && s.tabActive]}
-          onPress={() => setTab('answered')}
-        >
-          <Text style={[s.tabText, tab === 'answered' && s.tabTextActive]}>
-            My Answers ({myAnswers.length})
-          </Text>
+        <TouchableOpacity style={[s.tab, tab === 'answered' && s.tabActive]} onPress={() => setTab('answered')}>
+          <Text style={[s.tabText, tab === 'answered' && s.tabTextActive]}>Answers ({myAnswers.length})</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
-        {loading && (
-          <Text style={s.emptyText}>Loading...</Text>
-        )}
-
+        {loading && <Text style={s.emptyText}>Loading...</Text>}
         {!loading && items.length === 0 && (
           <View style={s.emptyWrap}>
-            <Text style={s.emptyIcon}>{tab === 'asked' ? '❓' : '💬'}</Text>
-            <Text style={s.emptyText}>
-              {tab === 'asked'
-                ? 'No questions yet. Go to the Ask tab to ask something!'
-                : 'No answers yet. Start earning to answer nearby questions!'}
-            </Text>
+            <Text style={s.emptyTitle}>{tab === 'asked' ? 'No questions yet' : 'No answers yet'}</Text>
+            <Text style={s.emptyText}>{tab === 'asked' ? 'Go to Ask tab to ask something' : 'Start earning to answer questions'}</Text>
           </View>
         )}
-
         {items.map((q) => {
           const isExpired = q.status === 'expired' || (q.status === 'open' && new Date(q.expires_at) < new Date());
           const displayStatus = q.status === 'answered' ? 'answered' : isExpired ? 'expired' : q.status;
-
           return (
-          <View key={q.id} style={s.card}>
-            {/* Status badge */}
-            <View style={s.cardTop}>
-              <View style={[
-                s.statusBadge,
-                displayStatus === 'answered' && s.statusAnswered,
-                displayStatus === 'open' && s.statusOpen,
-                displayStatus === 'expired' && s.statusExpired,
-              ]}>
-                <Text style={[
-                  s.statusText,
-                  displayStatus === 'answered' && s.statusTextAnswered,
-                  displayStatus === 'open' && s.statusTextOpen,
-                ]}>
-                  {displayStatus === 'answered' ? '✓ ANSWERED' : displayStatus === 'open' ? '⏳ WAITING' : '✕ EXPIRED'}
+            <View key={q.id} style={s.card}>
+              <View style={s.cardTop}>
+                <View style={[s.statusBadge, displayStatus === 'answered' && s.statusAnswered, displayStatus === 'open' && s.statusOpen, displayStatus === 'expired' && s.statusExpired]}>
+                  <Text style={[s.statusText, displayStatus === 'answered' && s.statusTextAnswered, displayStatus === 'open' && s.statusTextOpen]}>
+                    {displayStatus === 'answered' ? 'Answered' : displayStatus === 'open' ? 'Waiting' : 'Expired'}
+                  </Text>
+                </View>
+                <Text style={s.timeAgo}>
+                  {displayStatus === 'open' ? `${Math.max(0, Math.floor((new Date(q.expires_at).getTime() - Date.now()) / 60000))}m left` : timeAgo(q.created_at)}
                 </Text>
               </View>
-              <Text style={s.timeAgo}>
-                {displayStatus === 'open'
-                  ? `⏱ ${Math.max(0, Math.floor((new Date(q.expires_at).getTime() - Date.now()) / 60000))}m left`
-                  : timeAgo(q.created_at)}
-              </Text>
-            </View>
-
-            {/* Question */}
-            <Text style={s.questionText}>{q.question}</Text>
-
-            {/* Answer (if exists) */}
-            {q.answer && (
-              <View style={s.answerBox}>
-                <Text style={s.answerLabel}>
-                  {tab === 'asked' ? 'ANSWER' : 'YOUR ANSWER'}
-                </Text>
-                <Text style={s.answerText}>{q.answer}</Text>
+              <Text style={s.questionText}>{q.question}</Text>
+              {q.answer && (
+                <View style={s.answerBox}>
+                  <Text style={s.answerLabel}>{tab === 'asked' ? 'Answer' : 'Your answer'}</Text>
+                  <Text style={s.answerText}>{q.answer}</Text>
+                </View>
+              )}
+              <View style={s.metaRow}>
+                {q.response_time_ms && <Text style={s.meta}>{Math.round(q.response_time_ms / 1000)}s</Text>}
+                {q.budget_usdc && <Text style={s.meta}>${q.budget_usdc.toFixed(2)}</Text>}
+                {q.rating && <Text style={s.meta}>{q.rating === 'helpful' ? 'Helpful' : 'Not helpful'}</Text>}
               </View>
-            )}
-
-            {/* Stats row */}
-            <View style={s.statsRow}>
-              {q.response_time_ms && (
-                <Text style={s.statItem}>⚡ {Math.round(q.response_time_ms / 1000)}s</Text>
-              )}
-              {q.budget_usdc && (
-                <Text style={s.statItem}>💰 ${q.budget_usdc.toFixed(2)}</Text>
-              )}
-              {q.rating && (
-                <Text style={s.statItem}>{q.rating === 'helpful' ? '👍' : '👎'} {q.rating}</Text>
-              )}
             </View>
-          </View>
           );
         })}
-
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -177,66 +100,38 @@ export default function ActivityScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 52, paddingBottom: 12 },
+  heading: { fontSize: 26, fontWeight: '700', color: '#1A1A1E' },
+  refreshBtn: { color: '#A0A0AB', fontSize: 14 },
 
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 52, paddingBottom: 12,
-  },
-  heading: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: -0.5 },
-  refreshBtn: { color: 'rgba(167,139,250,0.6)', fontSize: 14 },
+  tabRow: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, backgroundColor: '#F5F5F7', borderRadius: 10, padding: 3 },
+  tab: { flex: 1, paddingVertical: 9, borderRadius: 8, alignItems: 'center' },
+  tabActive: { backgroundColor: '#FFFFFF', shadowColor: '#7C5CFC', shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  tabText: { color: '#A5A4B4', fontSize: 13, fontWeight: '600' },
+  tabTextActive: { color: '#7C5CFC' },
 
-  // Tabs
-  tabRow: {
-    flexDirection: 'row', marginHorizontal: 20, marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 12, padding: 3,
-  },
-  tab: {
-    flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center',
-  },
-  tabActive: {
-    backgroundColor: 'rgba(167,139,250,0.15)',
-  },
-  tabText: { color: 'rgba(255,255,255,0.3)', fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: '#a78bfa' },
-
-  // List
   list: { flex: 1, paddingHorizontal: 20 },
+  emptyWrap: { alignItems: 'center', paddingTop: 60, gap: 8 },
+  emptyTitle: { color: '#6B6B76', fontSize: 17, fontWeight: '600' },
+  emptyText: { color: '#A0A0AB', fontSize: 13 },
 
-  // Empty
-  emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { color: 'rgba(255,255,255,0.3)', fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  card: { padding: 14, borderRadius: 12, marginBottom: 10, backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: '#EEEDF5' },
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, backgroundColor: '#EEEDF5' },
+  statusAnswered: { backgroundColor: '#F0FAF3' },
+  statusOpen: { backgroundColor: '#FFF8E1' },
+  statusExpired: {},
+  statusText: { fontSize: 11, fontWeight: '600', color: '#A0A0AB' },
+  statusTextAnswered: { color: '#34C759' },
+  statusTextOpen: { color: '#FF9500' },
+  timeAgo: { fontSize: 11, color: '#A0A0AB', fontFamily: 'SpaceMono' },
 
-  // Card
-  card: {
-    padding: 16, borderRadius: 14, marginBottom: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)',
-  },
-  cardTop: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10,
-  },
-  statusBadge: {
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-  },
-  statusAnswered: { backgroundColor: 'rgba(167,139,250,0.1)' },
-  statusOpen: { backgroundColor: 'rgba(250,200,50,0.1)' },
-  statusExpired: { backgroundColor: 'rgba(255,255,255,0.03)' },
-  statusText: { fontSize: 9, fontWeight: '800', letterSpacing: 1, fontFamily: 'SpaceMono', color: 'rgba(255,255,255,0.3)' },
-  statusTextAnswered: { color: '#a78bfa' },
-  statusTextOpen: { color: 'rgba(250,200,50,0.7)' },
-  timeAgo: { fontSize: 11, color: 'rgba(255,255,255,0.2)', fontFamily: 'SpaceMono' },
+  questionText: { color: '#1A1A1E', fontSize: 15, fontWeight: '500', lineHeight: 22, marginBottom: 8 },
+  answerBox: { padding: 10, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E8EC', marginBottom: 8 },
+  answerLabel: { fontSize: 10, color: '#A0A0AB', letterSpacing: 1, marginBottom: 4 },
+  answerText: { color: '#1A1A1E', fontSize: 14, lineHeight: 20 },
 
-  questionText: { color: '#fff', fontSize: 16, fontWeight: '500', lineHeight: 23, marginBottom: 10 },
-
-  answerBox: {
-    padding: 12, borderRadius: 10, marginBottom: 10,
-    backgroundColor: 'rgba(167,139,250,0.05)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.1)',
-  },
-  answerLabel: { fontSize: 9, color: 'rgba(167,139,250,0.5)', letterSpacing: 1.5, fontFamily: 'SpaceMono', marginBottom: 4 },
-  answerText: { color: 'rgba(255,255,255,0.8)', fontSize: 14, lineHeight: 21 },
-
-  statsRow: { flexDirection: 'row', gap: 14 },
-  statItem: { color: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'SpaceMono' },
+  metaRow: { flexDirection: 'row', gap: 12 },
+  meta: { color: '#A0A0AB', fontSize: 11, fontFamily: 'SpaceMono' },
 });

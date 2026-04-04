@@ -2,111 +2,23 @@ import { StyleSheet, TouchableOpacity, ActivityIndicator, Animated, Easing, Dime
 import { Text, View } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { verifyWithWorldID, verifyProofOnBackend } from '@/lib/worldid';
 import { registerUser, getUser } from '@/lib/auth';
 import { useDynamic, showDynamicAuth } from '@/lib/dynamic';
 
 type VerifyState = 'idle' | 'verifying' | 'registering' | 'wallet' | 'success' | 'error';
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// Floating particles like stars
-function StarField() {
-  const stars = useRef(
-    Array.from({ length: 30 }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height * 0.7 + height * 0.05,
-      size: 1 + Math.random() * 2,
-      opacity: new Animated.Value(Math.random() * 0.3),
-    }))
-  ).current;
-
-  useEffect(() => {
-    stars.forEach((star) => {
-      const twinkle = () => {
-        Animated.sequence([
-          Animated.timing(star.opacity, {
-            toValue: 0.1 + Math.random() * 0.5,
-            duration: 1000 + Math.random() * 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(star.opacity, {
-            toValue: 0.02,
-            duration: 1000 + Math.random() * 3000,
-            useNativeDriver: true,
-          }),
-        ]).start(twinkle);
-      };
-      setTimeout(twinkle, Math.random() * 2000);
-    });
-  }, []);
-
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {stars.map((s, i) => (
-        <Animated.View
-          key={i}
-          style={{
-            position: 'absolute', left: s.x, top: s.y,
-            width: s.size, height: s.size, borderRadius: s.size,
-            backgroundColor: '#c4b5fd', opacity: s.opacity,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
-// Hero ball with slow rotation + glowing ring
-function GlowingOrb() {
+function FloatingOrb() {
   const rotation = useRef(new Animated.Value(0)).current;
-  const ringScale = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0.25)).current;
-
   useEffect(() => {
-    // Slow continuous rotation
-    Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-
-    // Pulsing ring + glow
-    const pulse = () => {
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(ringScale, { toValue: 1.12, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(ringScale, { toValue: 1, duration: 3000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        ]),
-        Animated.sequence([
-          Animated.timing(glow, { toValue: 0.45, duration: 2500, useNativeDriver: true }),
-          Animated.timing(glow, { toValue: 0.15, duration: 2500, useNativeDriver: true }),
-        ]),
-      ]).start(pulse);
-    };
-    pulse();
+    Animated.loop(Animated.timing(rotation, { toValue: 1, duration: 25000, easing: Easing.linear, useNativeDriver: true })).start();
   }, []);
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
+  const spin = rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   return (
-    <View style={s.orbWrap}>
-      <Animated.View style={[s.orbGlow, { opacity: glow }]} />
-      <Animated.View style={[s.orbRing, { transform: [{ scale: ringScale }] }]} />
-      <Animated.View style={[s.orbImageWrap, { transform: [{ rotate: spin }] }]}>
-        <Image
-          source={require('@/assets/images/hero-ball.png')}
-          style={s.orbImage}
-          resizeMode="contain"
-        />
-      </Animated.View>
-    </View>
+    <Animated.View style={[s.orbWrap, { transform: [{ rotate: spin }] }]}>
+      <Image source={require('@/assets/images/hero-ball.png')} style={s.orbImage} resizeMode="contain" />
+    </Animated.View>
   );
 }
 
@@ -114,6 +26,8 @@ export default function VerifyScreen() {
   const [state, setState] = useState<VerifyState>('idle');
   const [statusText, setStatusText] = useState('');
   const [errorText, setErrorText] = useState('');
+  const [storedNullifier, setStoredNullifier] = useState('');
+  const { wallets, auth } = useDynamic();
   const fadeIn = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(30)).current;
 
@@ -121,79 +35,45 @@ export default function VerifyScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeIn, { toValue: 1, duration: 900, useNativeDriver: true }),
-      Animated.timing(slideUp, { toValue: 0, duration: 900, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+      Animated.timing(fadeIn, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideUp, { toValue: 0, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
     ]).start();
   }, []);
 
   const handleVerify = async () => {
-    console.log('[Verify] Starting verification, appId:', appId);
-    if (!appId || appId === 'app_xxxxx') { setErrorText('Set EXPO_PUBLIC_APP_ID in .env first'); setState('error'); return; }
-
+    if (!appId || appId === 'app_xxxxx') { setErrorText('Set EXPO_PUBLIC_APP_ID in .env'); setState('error'); return; }
     setState('verifying'); setStatusText('Opening World App...'); setErrorText('');
-    console.log('[Verify] Calling verifyWithWorldID...');
-
     const result = await verifyWithWorldID(appId, 'register');
-    console.log('[Verify] Bridge result:', result.success, result.error || '');
-
     if (!result.success || !result.proof) { setErrorText(result.error || 'Verification failed'); setState('error'); return; }
-
     setState('registering'); setStatusText('Verifying proof...');
-    console.log('[Verify] Calling verifyProofOnBackend...');
-
     const backendResult = await verifyProofOnBackend(appId, 'register', result.proof);
-    console.log('[Verify] Backend result:', backendResult.success, backendResult.error || '');
-
-    if (!backendResult.success) { setErrorText(`Verification failed: ${backendResult.error}`); setState('error'); return; }
-
+    if (!backendResult.success) { setErrorText(`${backendResult.error}`); setState('error'); return; }
     const nullifier = backendResult.nullifier_hash || result.proof.nullifier_hash;
-    console.log('[Verify] Nullifier:', nullifier);
-
-    // Create user immediately with placeholder wallet
     setStatusText('Creating account...');
     const placeholderWallet = `0x${nullifier.slice(2, 42)}`;
     const r = await registerUser(nullifier, placeholderWallet);
-    console.log('[Verify] Register result:', r.user?.id || r.error);
-
     if (r.error) { setErrorText(r.error); setState('error'); return; }
-
-    // Now offer wallet connection
     setStoredNullifier(nullifier);
     setState('wallet');
   };
 
-  const [storedNullifier, setStoredNullifier] = useState('');
-  const { wallets, auth } = useDynamic();
+  const handleConnectWallet = () => { setStatusText('Opening wallet...'); showDynamicAuth(); };
 
-  const handleConnectWallet = () => {
-    setStatusText('Opening wallet...');
-    showDynamicAuth();
-  };
-
-  // Watch for wallet connection after Dynamic login
   useEffect(() => {
     if (state === 'wallet' && wallets && wallets.length > 0) {
-      completeRegistration(wallets[0].address);
+      (async () => {
+        setState('registering'); setStatusText('Connecting wallet...');
+        const { supabase } = await import('@/lib/supabase');
+        const user = await getUser();
+        if (user) await supabase.from('users').update({ wallet_address: wallets[0].address }).eq('id', user.id);
+        setState('success'); setStatusText("You're in.");
+        setTimeout(() => router.replace('/(tabs)'), 1200);
+      })();
     }
   }, [wallets, state]);
 
-  const completeRegistration = async (walletAddress: string) => {
-    setState('registering');
-    setStatusText('Connecting wallet...');
-
-    // Update wallet address in Supabase
-    const { supabase } = await import('@/lib/supabase');
-    const user = await getUser();
-    if (user) {
-      await supabase.from('users').update({ wallet_address: walletAddress }).eq('id', user.id);
-    }
-
-    setState('success'); setStatusText("You're in.");
-    setTimeout(() => router.replace('/(tabs)'), 1200);
-  };
-
   const handleDevSkip = async () => {
-    setState('registering'); setStatusText('Creating dev account...');
+    setState('registering'); setStatusText('Creating account...');
     const dn = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     const dw = '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     const r = await registerUser(dn, dw);
@@ -203,94 +83,51 @@ export default function VerifyScreen() {
 
   return (
     <View style={s.container}>
-      <LinearGradient
-        colors={['#000000', '#0a0015', '#050010', '#000000']}
-        locations={[0, 0.3, 0.7, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={s.ambientGlow} />
-      <StarField />
-
-      {/* Top badge */}
-      <Animated.View style={[s.topBadge, { opacity: fadeIn }]}>
-        <View style={s.topDot} />
-        <Text style={s.topText}>HUMAN VERIFICATION REQUIRED</Text>
-      </Animated.View>
-
       {/* Center */}
       <Animated.View style={[s.center, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
-        <GlowingOrb />
+        <FloatingOrb />
         <Text style={s.title}>Horacle</Text>
-        <Text style={s.tagline}>Real-time intelligence{'\n'}from verified humans.</Text>
+        <Text style={s.tagline}>Real-time intelligence{'\n'}from verified humans</Text>
 
         <View style={s.pillRow}>
-          {['Earn $0.05/answer', 'Go Live anywhere', 'World ID verified'].map((t) => (
-            <View key={t} style={s.pill}>
-              <Text style={s.pillText}>{t}</Text>
-            </View>
+          {['$0.05/answer', 'Go Live anywhere', 'World ID'].map((t) => (
+            <View key={t} style={s.pill}><Text style={s.pillText}>{t}</Text></View>
           ))}
         </View>
       </Animated.View>
 
-      {/* Bottom actions */}
+      {/* Bottom */}
       <Animated.View style={[s.bottom, { opacity: fadeIn }]}>
         {state === 'idle' && (
           <>
-            <TouchableOpacity style={s.verifyBtn} onPress={handleVerify} activeOpacity={0.85}>
-              <LinearGradient
-                colors={['#a78bfa', '#7c3aed']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={s.verifyGradient}
-              >
-                <Text style={s.verifyText}>Verify with World ID</Text>
-                <Text style={s.verifyArrow}>→</Text>
-              </LinearGradient>
+            <TouchableOpacity style={s.verifyBtn} onPress={handleVerify} activeOpacity={0.8}>
+              <Text style={s.verifyBtnText}>Verify with World ID</Text>
             </TouchableOpacity>
-
-            <Text style={s.disclaimer}>
-              Proves you're a unique human.{'\n'}One person. One account. Real reputation.
-            </Text>
-
+            <Text style={s.disclaimer}>Proves you're a unique human.{'\n'}One person, one account.</Text>
             <TouchableOpacity style={s.devBtn} onPress={handleDevSkip}>
-              <Text style={s.devText}>skip — dev mode</Text>
+              <Text style={s.devBtnText}>skip — dev mode</Text>
             </TouchableOpacity>
           </>
         )}
 
         {(state === 'verifying' || state === 'registering') && (
           <View style={s.statusWrap}>
-            <ActivityIndicator size="large" color="#a78bfa" />
+            <ActivityIndicator size="large" color="#1A1A1E" />
             <Text style={s.statusLabel}>{statusText}</Text>
-            {state === 'verifying' && <Text style={s.statusHint}>Complete verification in World App</Text>}
+            {state === 'verifying' && <Text style={s.statusHint}>Complete in World App</Text>}
           </View>
         )}
 
         {state === 'wallet' && (
           <View style={s.statusWrap}>
-            <View style={s.walletStep}>
-              <Text style={s.walletStepIcon}>🛡️ ✓</Text>
-              <Text style={s.walletStepDone}>World ID Verified</Text>
-            </View>
-
-            <Text style={s.walletTitle}>Connect Your Wallet</Text>
-            <Text style={s.walletDesc}>You need a wallet to earn and pay for answers</Text>
-
-            <TouchableOpacity style={s.walletBtn} onPress={handleConnectWallet} activeOpacity={0.85}>
-              <LinearGradient colors={['#a78bfa', '#7c3aed']} style={s.walletBtnGradient}>
-                <Text style={s.walletBtnText}>Connect or Create Wallet</Text>
-              </LinearGradient>
+            <Text style={s.walletDone}>World ID verified</Text>
+            <Text style={s.walletTitle}>Connect your wallet</Text>
+            <Text style={s.walletDesc}>Required for earning and payments</Text>
+            <TouchableOpacity style={s.verifyBtn} onPress={handleConnectWallet}>
+              <Text style={s.verifyBtnText}>Connect Wallet</Text>
             </TouchableOpacity>
-
-            <TouchableOpacity
-              style={s.skipWalletBtn}
-              onPress={() => {
-                setState('success');
-                setStatusText("You're in.");
-                setTimeout(() => router.replace('/(tabs)'), 1200);
-              }}
-            >
-              <Text style={s.skipWalletText}>Skip for now</Text>
+            <TouchableOpacity style={s.devBtn} onPress={() => { setState('success'); setStatusText("You're in."); setTimeout(() => router.replace('/(tabs)'), 1200); }}>
+              <Text style={s.devBtnText}>Skip for now</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -311,91 +148,46 @@ export default function VerifyScreen() {
           </View>
         )}
       </Animated.View>
-
-      <Text style={s.version}>v1.0 — ETHGlobal Cannes 2026</Text>
     </View>
   );
 }
 
-const ORB = 140;
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  ambientGlow: {
-    position: 'absolute', top: height * 0.22, left: width * 0.5 - 150,
-    width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(124,58,237,0.1)',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
 
-  topBadge: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: 56, gap: 8,
-    backgroundColor: 'rgba(167,139,250,0.06)', paddingHorizontal: 16, paddingVertical: 6,
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(167,139,250,0.12)',
-  },
-  topDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#a78bfa' },
-  topText: { color: '#a78bfa', fontSize: 10, fontFamily: 'SpaceMono', letterSpacing: 2 },
+  orbWrap: { width: 140, height: 140, marginBottom: 24 },
+  orbImage: { width: 140, height: 140 },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-
-  orbWrap: { width: ORB + 60, height: ORB + 60, alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  orbGlow: {
-    position: 'absolute', width: ORB + 60, height: ORB + 60, borderRadius: (ORB + 60) / 2,
-    backgroundColor: 'rgba(124,58,237,0.2)',
-  },
-  orbRing: {
-    position: 'absolute', width: ORB + 20, height: ORB + 20, borderRadius: (ORB + 20) / 2,
-    borderWidth: 1.5, borderColor: 'rgba(167,139,250,0.25)',
-  },
-  orbImageWrap: { width: ORB, height: ORB },
-  orbImage: { width: ORB, height: ORB },
-
-  title: { fontSize: 38, fontWeight: '900', color: '#fff', letterSpacing: -1.5 },
-  tagline: { fontSize: 15, color: 'rgba(255,255,255,0.35)', textAlign: 'center', marginTop: 10, lineHeight: 22 },
+  title: { fontSize: 34, fontWeight: '800', color: '#1A1A1E', letterSpacing: -1 },
+  tagline: { fontSize: 15, color: '#A0A0AB', textAlign: 'center', marginTop: 8, lineHeight: 22 },
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 24 },
-  pill: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(167,139,250,0.15)', backgroundColor: 'rgba(167,139,250,0.05)',
-  },
-  pillText: { color: 'rgba(167,139,250,0.7)', fontSize: 11, fontFamily: 'SpaceMono' },
+  pill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#F5F5F7', borderWidth: 1, borderColor: '#E8E8EC' },
+  pillText: { color: '#6B6B76', fontSize: 12, fontWeight: '500' },
 
-  bottom: { paddingHorizontal: 24, paddingBottom: 24 },
+  bottom: { paddingHorizontal: 24, paddingBottom: 36 },
 
-  verifyBtn: { borderRadius: 16, overflow: 'hidden', marginBottom: 14 },
-  verifyGradient: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, gap: 10,
-  },
-  verifyText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  verifyArrow: { color: 'rgba(255,255,255,0.6)', fontSize: 20 },
+  verifyBtn: { borderRadius: 14, paddingVertical: 18, alignItems: 'center', backgroundColor: '#7C5CFC', marginBottom: 14 },
+  verifyBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
 
-  disclaimer: { color: 'rgba(255,255,255,0.2)', fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  disclaimer: { color: '#A0A0AB', fontSize: 12, textAlign: 'center', lineHeight: 18 },
   devBtn: { alignSelf: 'center', marginTop: 16, padding: 8 },
-  devText: { color: 'rgba(255,255,255,0.15)', fontSize: 11, fontFamily: 'SpaceMono' },
+  devBtnText: { color: '#D0D0D8', fontSize: 12 },
 
-  statusWrap: { alignItems: 'center', gap: 14, paddingVertical: 20 },
-  statusLabel: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  statusHint: { color: 'rgba(255,255,255,0.25)', fontSize: 12 },
+  statusWrap: { alignItems: 'center', gap: 12, paddingVertical: 20 },
+  statusLabel: { color: '#1A1A1E', fontSize: 16, fontWeight: '500' },
+  statusHint: { color: '#A0A0AB', fontSize: 12 },
 
-  successCircle: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(167,139,250,0.15)',
-    borderWidth: 2, borderColor: '#a78bfa', alignItems: 'center', justifyContent: 'center',
-  },
-  successCheck: { fontSize: 26, color: '#a78bfa' },
-  successLabel: { color: '#a78bfa', fontSize: 22, fontWeight: '700' },
+  walletDone: { color: '#34C759', fontSize: 13, fontWeight: '600' },
+  walletTitle: { color: '#1A1A1E', fontSize: 20, fontWeight: '700' },
+  walletDesc: { color: '#A0A0AB', fontSize: 13, marginBottom: 8 },
 
-  errorLabel: { color: '#f87171', fontSize: 13, textAlign: 'center', fontFamily: 'SpaceMono', lineHeight: 20 },
-  retryBtn: { paddingVertical: 10, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-  retryText: { color: '#fff', fontWeight: '500' },
+  successCircle: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#F0FAF3', borderWidth: 2, borderColor: '#34C759', alignItems: 'center', justifyContent: 'center' },
+  successCheck: { fontSize: 24, color: '#34C759' },
+  successLabel: { color: '#34C759', fontSize: 20, fontWeight: '700' },
 
-  version: { color: 'rgba(255,255,255,0.08)', fontSize: 10, fontFamily: 'SpaceMono', textAlign: 'center', paddingBottom: 14 },
-
-  // Wallet step
-  walletStep: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
-  walletStepIcon: { fontSize: 16 },
-  walletStepDone: { color: 'rgba(167,139,250,0.6)', fontSize: 13, fontWeight: '600' },
-  walletTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 6 },
-  walletDesc: { color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', marginBottom: 24 },
-  walletBtn: { borderRadius: 16, overflow: 'hidden', width: '100%' },
-  walletBtnGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 16 },
-  walletBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
-  skipWalletBtn: { marginTop: 16, padding: 8 },
-  skipWalletText: { color: 'rgba(255,255,255,0.2)', fontSize: 12 },
+  errorLabel: { color: '#FF3B30', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  retryBtn: { paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12, borderWidth: 1, borderColor: '#E8E8EC' },
+  retryText: { color: '#1A1A1E', fontWeight: '600' },
 });
