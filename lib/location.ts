@@ -26,9 +26,9 @@ export async function startLiveTracking(): Promise<void> {
     deferredUpdatesInterval: 15000, // iOS: at least every 15 seconds
     showsBackgroundLocationIndicator: true, // iOS blue bar
     foregroundService: {
-      notificationTitle: 'Horacle — You\'re Live',
-      notificationBody: 'Earning from nearby questions',
-      notificationColor: '#000000',
+      notificationTitle: 'Horacle — Earning Mode',
+      notificationBody: 'You\'re available for nearby questions · ~$0.05 per answer',
+      notificationColor: '#7c3aed',
     },
   });
 }

@@ -85,6 +85,14 @@ CREATE OR REPLACE FUNCTION upsert_location(
   SET location = EXCLUDED.location, accuracy_m = EXCLUDED.accuracy_m, updated_at = now();
 $$ LANGUAGE sql;
 
+CREATE OR REPLACE FUNCTION create_live_session(
+  p_user_id UUID, p_lng FLOAT, p_lat FLOAT, p_expires_at TIMESTAMPTZ
+) RETURNS UUID AS $$
+  INSERT INTO live_sessions (user_id, location, status, expires_at)
+  VALUES (p_user_id, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, 'live', p_expires_at)
+  RETURNING id;
+$$ LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION find_live_responders(
   p_lng FLOAT, p_lat FLOAT, p_radius_m FLOAT DEFAULT 500
 ) RETURNS TABLE(
