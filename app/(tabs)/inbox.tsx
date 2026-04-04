@@ -24,6 +24,21 @@ export default function InboxScreen() {
   }, [user]);
 
   const fetchQueries = async () => {
+    // Only show questions near the user's current location
+    try {
+      const { getCurrentLocation } = await import('@/lib/location');
+      const loc = await getCurrentLocation();
+      if (loc) {
+        // Use PostGIS to find nearby open queries (within 5km)
+        const { data } = await supabase.rpc('find_nearby_queries', {
+          p_lng: loc.lng,
+          p_lat: loc.lat,
+          p_radius_m: 5000,
+        });
+        if (data) { setQueries(data); return; }
+      }
+    } catch {}
+    // Fallback: show all open queries if location fails
     const { data } = await supabase.from('queries').select('*').eq('status', 'open').gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(20);
     if (data) setQueries(data);
   };

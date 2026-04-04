@@ -20,11 +20,29 @@ export default function ActivityScreen() {
     return () => clearInterval(tickInterval);
   }, []);
 
+  const [locationNames, setLocationNames] = useState<Record<string, string>>({});
+
   const fetchAll = async (userId: string) => {
     setLoading(true);
     await supabase.rpc('expire_stale');
     const { data: asked } = await supabase.from('queries').select('*').eq('asker_id', userId).order('created_at', { ascending: false }).limit(20);
     const { data: answered } = await supabase.from('queries').select('*').eq('responder_id', userId).order('created_at', { ascending: false }).limit(20);
+
+    // Reverse geocode query locations
+    const allQueries = [...(asked || []), ...(answered || [])];
+    const { reverseGeocode } = await import('@/lib/geocode');
+    for (const q of allQueries.slice(0, 5)) {
+      if (q.location && !locationNames[q.id]) {
+        try {
+          // Extract lat/lng from PostGIS — stored as geography, need to query
+          const { data: coords } = await supabase.rpc('get_query_coords', { p_query_id: q.id });
+          if (coords) {
+            const name = await reverseGeocode(coords.lat, coords.lng);
+            setLocationNames(prev => ({ ...prev, [q.id]: name }));
+          }
+        } catch {}
+      }
+    }
     if (asked) setMyQuestions(asked);
     if (answered) setMyAnswers(answered);
     setLoading(false);
@@ -79,6 +97,7 @@ export default function ActivityScreen() {
                 </Text>
               </View>
               <Text style={s.questionText}>{q.question}</Text>
+              {locationNames[q.id] && <Text style={s.locationText}>{locationNames[q.id]}</Text>}
               {q.answer && (
                 <View style={s.answerBox}>
                   <Text style={s.answerLabel}>{tab === 'asked' ? 'Answer' : 'Your answer'}</Text>
@@ -127,7 +146,8 @@ const s = StyleSheet.create({
   statusTextOpen: { color: '#FF9500' },
   timeAgo: { fontSize: 11, color: '#A0A0AB', fontFamily: 'SpaceMono' },
 
-  questionText: { color: '#1A1A1E', fontSize: 15, fontWeight: '500', lineHeight: 22, marginBottom: 8 },
+  questionText: { color: '#1A1A1E', fontSize: 15, fontWeight: '500', lineHeight: 22, marginBottom: 4 },
+  locationText: { color: '#A5A4B4', fontSize: 12, marginBottom: 8 },
   answerBox: { padding: 10, borderRadius: 8, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E8E8EC', marginBottom: 8 },
   answerLabel: { fontSize: 10, color: '#A0A0AB', letterSpacing: 1, marginBottom: 4 },
   answerText: { color: '#1A1A1E', fontSize: 14, lineHeight: 20 },

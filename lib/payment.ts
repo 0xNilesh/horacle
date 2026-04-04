@@ -85,6 +85,7 @@ export async function askWithPayment(
     }
 
     console.log('[x402] Payment:', wcReq.amount, 'to', wcReq.payTo, 'on', wcReq.network);
+    console.log('[x402] Step 3: Getting wallet...');
 
     // Step 3: Get Dynamic wallet
     const wallets = dynamicClient.wallets?.userWallets;
@@ -93,7 +94,16 @@ export async function askWithPayment(
     }
 
     const wallet = wallets[0];
-    const walletClient = await dynamicClient.viem.createWalletClient({ wallet });
+    console.log('[x402] Wallet:', wallet.address, wallet.chain);
+
+    let walletClient;
+    try {
+      walletClient = await dynamicClient.viem.createWalletClient({ wallet });
+      console.log('[x402] WalletClient created');
+    } catch (wcErr: any) {
+      console.error('[x402] WalletClient creation FAILED:', wcErr.message);
+      throw wcErr;
+    }
 
     // Step 4: Sign EIP-3009 TransferWithAuthorization
     const randomBytes = new Uint8Array(32);
@@ -130,17 +140,21 @@ export async function askWithPayment(
       nonce,
     };
 
-    console.log('[x402] EIP-712 Domain:', JSON.stringify(domain));
-    console.log('[x402] EIP-712 Message:', JSON.stringify(message));
+    console.log('[x402] Signing EIP-712...');
 
-    const signature = await walletClient.signTypedData({
-      domain,
-      types,
-      primaryType: 'TransferWithAuthorization',
-      message,
-    });
-
-    console.log('[x402] Signature:', signature);
+    let signature: string;
+    try {
+      signature = await walletClient.signTypedData({
+        domain,
+        types,
+        primaryType: 'TransferWithAuthorization',
+        message,
+      });
+      console.log('[x402] Signature:', signature);
+    } catch (signErr: any) {
+      console.error('[x402] SIGNING FAILED:', signErr.message, signErr);
+      throw signErr;
+    }
 
     // Step 5: Build the payment payload (exact Circle format from SDK source)
     const paymentPayload = {

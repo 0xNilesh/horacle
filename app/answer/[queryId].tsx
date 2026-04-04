@@ -67,7 +67,6 @@ export default function AnswerScreen() {
 
   return (
     <View style={s.container}>
-      <LinearGradient colors={['#000', '#0a0015', '#000']} style={StyleSheet.absoluteFill} />
 
       <View style={s.inner}>
         {/* Header */}
@@ -77,7 +76,7 @@ export default function AnswerScreen() {
 
         {state === 'loading' && (
           <View style={s.centerWrap}>
-            <ActivityIndicator size="large" color="#a78bfa" />
+            <ActivityIndicator size="large" color="#7C5CFC" />
             <Text style={s.centerText}>Loading question...</Text>
           </View>
         )}
@@ -99,7 +98,7 @@ export default function AnswerScreen() {
               <TextInput
                 style={s.answerInput}
                 placeholder="Type your answer..."
-                placeholderTextColor="rgba(255,255,255,0.2)"
+                placeholderTextColor="#C8C8D0"
                 value={answer}
                 onChangeText={setAnswer}
                 multiline
@@ -116,7 +115,7 @@ export default function AnswerScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={answer.trim() ? ['#a78bfa', '#7c3aed'] : ['#333', '#222']}
+                colors={answer.trim() ? ['#7C5CFC', '#7C5CFC'] : ['#333', '#222']}
                 style={s.submitGradient}
               >
                 <Text style={s.submitText}>Send Answer · Earn $0.05</Text>
@@ -127,7 +126,7 @@ export default function AnswerScreen() {
 
         {state === 'submitting' && (
           <View style={s.centerWrap}>
-            <ActivityIndicator size="large" color="#a78bfa" />
+            <ActivityIndicator size="large" color="#7C5CFC" />
             <Text style={s.centerText}>Submitting...</Text>
           </View>
         )}
@@ -170,56 +169,56 @@ export default function AnswerScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   inner: { flex: 1, padding: 20, paddingTop: 52 },
 
   backBtn: { marginBottom: 20 },
-  backText: { color: 'rgba(255,255,255,0.4)', fontSize: 15 },
+  backText: { color: '#A5A4B4', fontSize: 15 },
 
   centerWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
-  centerText: { color: 'rgba(255,255,255,0.5)', fontSize: 16, textAlign: 'center' },
+  centerText: { color: '#6E6D7A', fontSize: 16, textAlign: 'center' },
 
   contentWrap: { flex: 1 },
 
   earningBadge: {
     alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10,
-    backgroundColor: 'rgba(167,139,250,0.1)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)',
+    backgroundColor: 'rgba(124,92,252,0.1)', borderWidth: 1, borderColor: 'rgba(124,92,252,0.2)',
     marginBottom: 20,
   },
-  earningText: { color: '#a78bfa', fontSize: 14, fontWeight: '700' },
+  earningText: { color: '#7C5CFC', fontSize: 14, fontWeight: '700' },
 
-  questionLabel: { fontSize: 10, color: 'rgba(255,255,255,0.2)', letterSpacing: 2, fontFamily: 'SpaceMono', marginBottom: 8 },
-  questionText: { fontSize: 22, color: '#fff', fontWeight: '300', lineHeight: 32, marginBottom: 16 },
-  distanceText: { color: 'rgba(167,139,250,0.5)', fontSize: 12, marginBottom: 20 },
+  questionLabel: { fontSize: 10, color: '#C8C8D0', letterSpacing: 2, fontFamily: 'SpaceMono', marginBottom: 8 },
+  questionText: { fontSize: 22, color: '#1A1A2E', fontWeight: '300', lineHeight: 32, marginBottom: 16 },
+  distanceText: { color: 'rgba(124,92,252,0.5)', fontSize: 12, marginBottom: 20 },
 
   answerCard: {
     borderRadius: 16, padding: 16, marginBottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.15)',
+    backgroundColor: '#F8F7FC', borderWidth: 1, borderColor: 'rgba(124,92,252,0.15)',
   },
-  answerInput: { color: '#fff', fontSize: 16, minHeight: 100, textAlignVertical: 'top', lineHeight: 24 },
-  charCount: { color: 'rgba(255,255,255,0.15)', fontSize: 11, textAlign: 'right', marginTop: 4, fontFamily: 'SpaceMono' },
+  answerInput: { color: '#1A1A2E', fontSize: 16, minHeight: 100, textAlignVertical: 'top', lineHeight: 24 },
+  charCount: { color: '#EEEDF5', fontSize: 11, textAlign: 'right', marginTop: 4, fontFamily: 'SpaceMono' },
 
   submitBtn: { borderRadius: 16, overflow: 'hidden' },
   submitBtnDisabled: { opacity: 0.5 },
   submitGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 16 },
-  submitText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  submitText: { color: '#1A1A2E', fontSize: 17, fontWeight: '800' },
 
   successCircle: {
     width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: 'rgba(167,139,250,0.1)', borderWidth: 2, borderColor: 'rgba(167,139,250,0.3)',
+    backgroundColor: 'rgba(124,92,252,0.1)', borderWidth: 2, borderColor: 'rgba(124,92,252,0.3)',
   },
   successIcon: { fontSize: 36 },
-  successTitle: { color: '#a78bfa', fontSize: 24, fontWeight: '800' },
-  successSub: { color: 'rgba(255,255,255,0.4)', fontSize: 14 },
+  successTitle: { color: '#7C5CFC', fontSize: 24, fontWeight: '800' },
+  successSub: { color: '#A5A4B4', fontSize: 14 },
 
   takenIcon: { fontSize: 40 },
-  takenSub: { color: 'rgba(255,255,255,0.3)', fontSize: 13 },
+  takenSub: { color: '#A5A4B4', fontSize: 13 },
 
   errorText: { color: '#f87171', fontSize: 14, textAlign: 'center' },
 
   doneBtn: {
     marginTop: 10, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: '#EEEDF5',
   },
-  doneText: { color: '#fff', fontWeight: '600' },
+  doneText: { color: '#1A1A2E', fontWeight: '600' },
 });

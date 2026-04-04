@@ -139,8 +139,9 @@ export default function AskScreen() {
       queryId = result.queryId;
       responders = result.responders || 0;
       paid = result.paid || false;
-    } catch (err) {
-      console.log('[Ask] Payment flow failed, trying free:', err);
+    } catch (err: any) {
+      console.log('[Ask] Payment flow FAILED:', err?.message || err);
+      console.log('[Ask] Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err || {})));
     }
 
     // Fallback: create question directly via Supabase if backend failed

@@ -110,6 +110,11 @@ export default function HomeScreen() {
 
   return (
     <View style={s.container}>
+      {/* Subtle background blobs */}
+      <View style={s.bgBlob1} />
+      <View style={s.bgBlob2} />
+      <View style={s.bgBlob3} />
+
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: fadeIn }}>
 
@@ -212,7 +217,22 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#FFFFFF', overflow: 'hidden' },
+  bgBlob1: {
+    position: 'absolute', top: -40, right: -50,
+    width: 200, height: 200, borderRadius: 100,
+    backgroundColor: 'rgba(124, 92, 252, 0.04)',
+  },
+  bgBlob2: {
+    position: 'absolute', top: 300, left: -70,
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(124, 92, 252, 0.03)',
+  },
+  bgBlob3: {
+    position: 'absolute', bottom: 100, right: -40,
+    width: 150, height: 150, borderRadius: 75,
+    backgroundColor: 'rgba(52, 199, 89, 0.03)',
+  },
   scroll: { padding: 20, paddingTop: 52, paddingBottom: 40 },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
