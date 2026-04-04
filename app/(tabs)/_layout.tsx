@@ -2,24 +2,25 @@ import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return <FontAwesome size={24} style={{ marginBottom: -3 }} {...props} />;
+  return <FontAwesome size={22} style={{ marginBottom: -3 }} {...props} />;
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: true,
+        tabBarActiveTintColor: '#00ff88',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.25)',
+        tabBarStyle: {
+          backgroundColor: '#000',
+          borderTopColor: 'rgba(255,255,255,0.06)',
+          borderTopWidth: 1,
+        },
+        headerShown: false,
       }}>
       <Tabs.Screen
         name="index"
@@ -31,7 +32,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="spike"
         options={{
-          title: 'Spike Tests',
+          title: 'Tests',
           tabBarIcon: ({ color }) => <TabBarIcon name="flask" color={color} />,
         }}
       />
