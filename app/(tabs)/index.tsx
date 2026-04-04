@@ -1,11 +1,11 @@
-import { StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Dimensions } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Dimensions, TextInput } from 'react-native';
 import { Text, View } from 'react-native';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCurrentLocation, requestLocationPermissions } from '@/lib/location';
 import { getUser, clearUser, type HoracleUser } from '@/lib/auth';
-// import { goLive, stopLive, getActiveLiveSession, type LiveSession } from '@/lib/live-session';
+import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
@@ -98,6 +98,12 @@ export default function HomeScreen() {
     if (isLive) {
       const { stopLiveTracking } = await import('@/lib/location');
       await stopLiveTracking();
+      // End session in Supabase
+      await supabase
+        .from('live_sessions')
+        .update({ status: 'ended' })
+        .eq('user_id', currentUser.id)
+        .eq('status', 'live');
       setSession(null);
       setLiveStatus('');
       return;
@@ -112,9 +118,40 @@ export default function HomeScreen() {
 
     setLiveStatus('Going live...');
     try {
+      // Get current location
+      const loc = await getCurrentLocation();
+      if (!loc) {
+        setLiveStatus('Could not get location');
+        return;
+      }
+
+      // Create live session in Supabase
+      const expiresAt = new Date(Date.now() + DURATIONS[selectedDuration].minutes * 60000).toISOString();
+      const { data: sessionId, error: sessionError } = await supabase.rpc('create_live_session', {
+        p_user_id: currentUser.id,
+        p_lng: loc.lng,
+        p_lat: loc.lat,
+        p_expires_at: expiresAt,
+      });
+
+      if (sessionError) {
+        setLiveStatus(`DB error: ${sessionError.message}`);
+        return;
+      }
+
+      // Also upsert current location
+      await supabase.rpc('upsert_location', {
+        p_user_id: currentUser.id,
+        p_lng: loc.lng,
+        p_lat: loc.lat,
+        p_accuracy: loc.accuracy,
+      });
+
+      // Start background tracking
       const { startLiveTracking } = await import('@/lib/location');
       await startLiveTracking();
-      setSession({ status: 'live', expires_at: new Date(Date.now() + DURATIONS[selectedDuration].minutes * 60000).toISOString() });
+
+      setSession({ id: sessionId, status: 'live', expires_at: expiresAt });
       setLiveStatus('');
     } catch (err: any) {
       setLiveStatus(err.message);
@@ -231,6 +268,8 @@ export default function HomeScreen() {
 
           {liveStatus ? <Text style={s.warning}>{liveStatus}</Text> : null}
 
+          {/* Questions are now in the Inbox tab */}
+
           {/* How it works */}
           <View style={s.section}>
             <Text style={s.sectionTitle}>HOW IT WORKS</Text>
@@ -259,6 +298,118 @@ export default function HomeScreen() {
 
         </Animated.View>
       </ScrollView>
+    </View>
+  );
+}
+
+// Component to show and answer pending questions nearby
+function PendingQuestions({ userId, isLive }: { userId: string; isLive: boolean }) {
+  const [queries, setQueries] = useState<any[]>([]);
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [answerText, setAnswerText] = useState('');
+  const [submitted, setSubmitted] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!userId) return;
+    const interval = setInterval(fetchQueries, 4000);
+    fetchQueries();
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  const fetchQueries = async () => {
+    const { data, error } = await supabase
+      .from('queries')
+      .select('*')
+      .eq('status', 'open')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+    if (data) setQueries(data);
+  };
+
+  const handleAnswer = async (queryId: string) => {
+    if (!answerText.trim()) return;
+    const { answerQuery } = await import('@/lib/queries');
+    const result = await answerQuery(queryId, userId, answerText.trim());
+    if (result.success) {
+      setAnswering(null);
+      setAnswerText('');
+      setSubmitted((prev) => new Set(prev).add(queryId));
+      fetchQueries();
+    }
+  };
+
+  const timeLeft = (expiresAt: string) => {
+    const secs = Math.max(0, Math.round((new Date(expiresAt).getTime() - Date.now()) / 1000));
+    if (secs > 60) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    return `${secs}s`;
+  };
+
+  return (
+    <View style={s.pendingSection}>
+      <View style={s.pendingSectionHeader}>
+        <Text style={s.sectionTitle}>💰 QUESTIONS FOR YOU</Text>
+        {queries.length > 0 && (
+          <View style={s.questionCount}>
+            <Text style={s.questionCountText}>{queries.length}</Text>
+          </View>
+        )}
+      </View>
+
+      {queries.length === 0 ? (
+        <View style={s.emptyPending}>
+          <Text style={s.emptyPendingText}>
+            {isLive
+              ? 'No questions yet — they\'ll appear here when someone asks nearby'
+              : 'Start earning to see questions from people nearby'}
+          </Text>
+        </View>
+      ) : (
+        queries.map((q) => (
+          <View key={q.id} style={s.pendingCard}>
+            <View style={s.pendingCardTop}>
+              <Text style={s.pendingBudget}>💰 ${q.budget_usdc?.toFixed(2)}</Text>
+              <Text style={s.pendingTimer}>⏱ {timeLeft(q.expires_at)}</Text>
+            </View>
+
+            <Text style={s.pendingQuestion}>{q.question}</Text>
+
+            {submitted.has(q.id) ? (
+              <View style={s.submittedBadge}>
+                <Text style={s.submittedText}>✓ Answer sent · $0.05 earned</Text>
+              </View>
+            ) : answering === q.id ? (
+              <View style={s.answerInputWrap}>
+                <TextInput
+                  style={s.pendingInput}
+                  placeholder="Type your answer..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  value={answerText}
+                  onChangeText={setAnswerText}
+                  multiline
+                  autoFocus
+                />
+                <View style={s.answerBtnRow}>
+                  <TouchableOpacity style={s.cancelBtn} onPress={() => { setAnswering(null); setAnswerText(''); }}>
+                    <Text style={s.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.answerSubmitBtn, !answerText.trim() && { opacity: 0.4 }]}
+                    onPress={() => handleAnswer(q.id)}
+                    disabled={!answerText.trim()}
+                  >
+                    <Text style={s.answerSubmitText}>Send · Earn ${q.budget_usdc?.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity style={s.answerBtn} onPress={() => { setAnswering(q.id); setAnswerText(''); }}>
+                <Text style={s.answerBtnText}>Answer this · Earn ${q.budget_usdc?.toFixed(2)}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))
+      )}
     </View>
   );
 }
@@ -366,4 +517,54 @@ const s = StyleSheet.create({
   },
   footerId: { fontSize: 10, color: 'rgba(255,255,255,0.12)', fontFamily: 'SpaceMono' },
   logout: { color: 'rgba(255,255,255,0.15)', fontSize: 12 },
+
+  // Pending questions
+  pendingSection: { marginTop: 16, marginBottom: 8 },
+  pendingSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  questionCount: {
+    width: 22, height: 22, borderRadius: 11, backgroundColor: '#7c3aed',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  questionCountText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  emptyPending: {
+    padding: 20, borderRadius: 14, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.02)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.04)',
+    borderStyle: 'dashed',
+  },
+  emptyPendingText: { color: 'rgba(255,255,255,0.2)', fontSize: 13, textAlign: 'center', lineHeight: 20 },
+  pendingCard: {
+    padding: 16, borderRadius: 14, marginBottom: 10,
+    backgroundColor: 'rgba(167,139,250,0.06)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)',
+  },
+  pendingCardTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  pendingBudget: { color: '#a78bfa', fontSize: 13, fontWeight: '700' },
+  pendingTimer: { color: 'rgba(255,255,255,0.3)', fontSize: 11, fontFamily: 'SpaceMono' },
+  pendingQuestion: { color: '#fff', fontSize: 17, fontWeight: '500', lineHeight: 24, marginBottom: 14 },
+  submittedBadge: {
+    paddingVertical: 10, borderRadius: 10, alignItems: 'center',
+    backgroundColor: 'rgba(167,139,250,0.1)',
+  },
+  submittedText: { color: '#a78bfa', fontSize: 13, fontWeight: '600' },
+  answerBtn: {
+    paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    backgroundColor: 'rgba(167,139,250,0.15)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.3)',
+  },
+  answerBtnText: { color: '#a78bfa', fontSize: 14, fontWeight: '700' },
+  answerInputWrap: { gap: 10 },
+  pendingInput: {
+    color: '#fff', fontSize: 15, padding: 14, borderRadius: 12, minHeight: 70,
+    backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.15)',
+    textAlignVertical: 'top',
+  },
+  answerBtnRow: { flexDirection: 'row', gap: 8 },
+  cancelBtn: {
+    flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  cancelBtnText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontWeight: '600' },
+  answerSubmitBtn: {
+    flex: 2, paddingVertical: 12, borderRadius: 10, alignItems: 'center',
+    backgroundColor: '#7c3aed',
+  },
+  answerSubmitText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

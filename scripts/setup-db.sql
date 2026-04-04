@@ -114,6 +114,37 @@ CREATE OR REPLACE FUNCTION find_live_responders(
   LIMIT 5;
 $$ LANGUAGE sql;
 
+-- Create a query with PostGIS location
+CREATE OR REPLACE FUNCTION create_query(
+  p_asker_id TEXT, p_question TEXT, p_lng FLOAT, p_lat FLOAT,
+  p_budget_usdc FLOAT, p_expires_at TIMESTAMPTZ
+) RETURNS UUID AS $$
+  INSERT INTO queries (asker_id, question, location, budget_usdc, expires_at)
+  VALUES (p_asker_id, p_question, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, p_budget_usdc, p_expires_at)
+  RETURNING id;
+$$ LANGUAGE sql;
+
+-- Increment responder stats after answering
+CREATE OR REPLACE FUNCTION increment_responder_stats(p_user_id UUID)
+RETURNS VOID AS $$
+  UPDATE users SET
+    total_queries_answered = total_queries_answered + 1,
+    total_earned_usdc = total_earned_usdc + 0.05
+  WHERE id = p_user_id;
+$$ LANGUAGE sql;
+
+-- Update reputation after rating
+CREATE OR REPLACE FUNCTION update_reputation(p_user_id UUID, p_rating TEXT)
+RETURNS VOID AS $$
+  UPDATE users SET
+    reputation_score = CASE
+      WHEN p_rating = 'helpful' THEN LEAST(5.0, reputation_score + 0.1 * (1 - reputation_score / 5))
+      WHEN p_rating = 'not_helpful' THEN GREATEST(0.0, reputation_score - 0.15 * (reputation_score / 5))
+      ELSE reputation_score
+    END
+  WHERE id = p_user_id;
+$$ LANGUAGE sql;
+
 CREATE OR REPLACE FUNCTION expire_stale() RETURNS VOID AS $$
   UPDATE live_sessions SET status = 'expired' WHERE status = 'live' AND expires_at < now();
   UPDATE queries SET status = 'expired' WHERE status = 'open' AND expires_at < now();
