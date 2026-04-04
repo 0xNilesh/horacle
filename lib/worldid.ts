@@ -75,8 +75,9 @@ export async function verifyWithWorldID(
 
     const { request_id } = await sessionRes.json();
 
-    // 4. Open World App via deep link
-    const verifyUrl = `https://world.org/verify?t=wld&i=${request_id}&k=${encodeURIComponent(exportedKey)}`;
+    // 4. Open World App via deep link with return URL
+    const returnUrl = Linking.createURL('/');
+    const verifyUrl = `https://world.org/verify?t=wld&i=${request_id}&k=${encodeURIComponent(exportedKey)}&return_to=${encodeURIComponent(returnUrl)}`;
     await Linking.openURL(verifyUrl);
 
     // 5. Poll for result (max 2 minutes, every 3 seconds)
