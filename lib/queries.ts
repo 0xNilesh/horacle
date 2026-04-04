@@ -36,7 +36,7 @@ export async function askQuestion(
   // 1. Find live responders nearby
   const { data: responders, error: findError } = await supabase.rpc(
     'find_live_responders',
-    { p_lng: lng, p_lat: lat, p_radius_m: 1000 }
+    { p_lng: lng, p_lat: lat, p_radius_m: 300 }
   );
 
   if (findError) {

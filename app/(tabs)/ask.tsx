@@ -28,19 +28,23 @@ export default function AskScreen() {
   const [searching, setSearching] = useState(false);
   const [myLocation, setMyLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [myPlaceName, setMyPlaceName] = useState('');
+  const [myNearbyCount, setMyNearbyCount] = useState(0);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Get user's location + reverse geocode for display
+  // Get user's location + reverse geocode + nearby count
   useEffect(() => {
     (async () => {
       try {
         const loc = await getCurrentLocation();
         if (loc) {
           setMyLocation(loc);
-          console.log('[Ask] Got location:', loc.lat, loc.lng);
           const name = await reverseGeocode(loc.lat, loc.lng);
-          console.log('[Ask] Place name:', name);
           setMyPlaceName(name);
+          // Count nearby live people
+          const { data } = await supabase.rpc('find_live_responders', {
+            p_lng: loc.lng, p_lat: loc.lat, p_radius_m: 1000,
+          });
+          setMyNearbyCount(data?.length || 0);
         }
       } catch (err) {
         console.error('[Ask] Location error:', err);
@@ -202,8 +206,22 @@ export default function AskScreen() {
             {/* Show current location info */}
             {locationMode === 'current' && myLocation && (
               <View style={s.currentLocInfo}>
-                <Text style={s.currentLocName}>{myPlaceName || 'Getting location...'}</Text>
+                <Text style={s.currentLocName}>📍 {myPlaceName || 'Getting location...'}</Text>
                 <Text style={s.currentLocCoords}>{myLocation.lat.toFixed(5)}, {myLocation.lng.toFixed(5)}</Text>
+                <View style={s.nearbyRow}>
+                  {myNearbyCount > 0 ? (
+                    <>
+                      <View style={s.nearbyDots}>
+                        {Array.from({ length: Math.min(myNearbyCount, 5) }).map((_, i) => (
+                          <View key={i} style={s.nearbyDot} />
+                        ))}
+                      </View>
+                      <Text style={s.nearbyText}>{myNearbyCount} {myNearbyCount === 1 ? 'person' : 'people'} nearby</Text>
+                    </>
+                  ) : (
+                    <Text style={s.nearbyNone}>No one live nearby right now</Text>
+                  )}
+                </View>
               </View>
             )}
 
@@ -403,7 +421,7 @@ function SelectedPlaceCard({ location, onClear }: { location: GeoResult; onClear
     supabase.rpc('find_live_responders', {
       p_lng: location.lng,
       p_lat: location.lat,
-      p_radius_m: 5000,
+      p_radius_m: 1000,
     }).then(({ data }) => {
       setNearbyCount(data?.length || 0);
     });
