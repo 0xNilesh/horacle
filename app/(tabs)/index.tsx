@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCurrentLocation, requestLocationPermissions } from '@/lib/location';
+import { reverseGeocode } from '@/lib/geocode';
 import { getUser, clearUser, type HoracleUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { router } from 'expo-router';
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const [selectedDuration, setSelectedDuration] = useState(2); // index into DURATIONS
   const [liveStatus, setLiveStatus] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
+  const [placeName, setPlaceName] = useState('');
   const fadeIn = useRef(new Animated.Value(0)).current;
 
   const isLive = session?.status === 'live';
@@ -59,8 +61,12 @@ export default function HomeScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') { setError('Permission denied'); return; }
       const loc = await getCurrentLocation();
-      if (loc) setLocation(loc);
-      else setError('Could not get location');
+      if (loc) {
+        setLocation(loc);
+        reverseGeocode(loc.lat, loc.lng).then(setPlaceName);
+      } else {
+        setError('Could not get location');
+      }
     })();
   }, []);
 
@@ -202,10 +208,13 @@ export default function HomeScreen() {
               {location && <View style={s.locationDot} />}
             </View>
             {location ? (
-              <View style={s.coordsRow}>
-                <Text style={s.coordVal}>{location.lat.toFixed(6)}</Text>
-                <Text style={s.coordSep}>·</Text>
-                <Text style={s.coordVal}>{location.lng.toFixed(6)}</Text>
+              <View>
+                {placeName ? <Text style={s.placeNameText}>{placeName}</Text> : null}
+                <View style={s.coordsRow}>
+                  <Text style={s.coordVal}>{location.lat.toFixed(6)}</Text>
+                  <Text style={s.coordSep}>·</Text>
+                  <Text style={s.coordVal}>{location.lng.toFixed(6)}</Text>
+                </View>
               </View>
             ) : error ? (
               <Text style={s.locError}>{error}</Text>
@@ -452,7 +461,8 @@ const s = StyleSheet.create({
   locationHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   locationLabel: { fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: 2.5, fontFamily: 'SpaceMono' },
   locationDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#a78bfa' },
-  coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  placeNameText: { color: '#a78bfa', fontSize: 15, fontWeight: '600', marginBottom: 6, textAlign: 'center' },
+  coordsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, justifyContent: 'center' },
   coordVal: { fontSize: 20, fontFamily: 'SpaceMono', color: 'rgba(255,255,255,0.7)' },
   coordSep: { fontSize: 20, color: 'rgba(167,139,250,0.3)' },
   locError: { color: '#f87171', fontSize: 13, fontFamily: 'SpaceMono' },

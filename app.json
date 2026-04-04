@@ -42,7 +42,8 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_LOCATION"
       ],
-      "package": "com.horacle.app"
+      "package": "com.horacle.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",

@@ -43,14 +43,11 @@ export async function askQuestion(
     return { error: `Could not find responders: ${findError.message}` };
   }
 
+  console.log(`[Query] Searching at lat=${lat}, lng=${lng}, radius=1000m`);
   console.log('[Query] Found responders:', JSON.stringify(responders));
 
-  if (!responders || responders.length === 0) {
-    return { error: 'No one is nearby right now. Try again later or expand your area.' };
-  }
-
-  // 2. Create query in DB
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 min expiry
+  // 2. Always create the query — even if no one is nearby right now
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry (longer so someone can find it later)
 
   const { data: query, error: insertError } = await supabase.rpc('create_query', {
     p_asker_id: askerId,
@@ -65,21 +62,24 @@ export async function askQuestion(
     return { error: `Could not create query: ${insertError.message}` };
   }
 
-  const responderList = responders as NearbyResponder[];
+  const responderList = (responders || []) as NearbyResponder[];
 
-  // 3. Send push notifications to nearby responders
-  const notifiedCount = await notifyResponders(
-    responderList,
-    query as string,
-    question,
-    budgetUsdc
-  );
+  // 3. Send push notifications if anyone is nearby
+  let notifiedCount = 0;
+  if (responderList.length > 0) {
+    notifiedCount = await notifyResponders(
+      responderList,
+      query as string,
+      question,
+      budgetUsdc
+    );
+  }
 
   console.log(`[Query] Created query ${query}, found ${responderList.length} responders, notified ${notifiedCount}`);
 
   return {
     query: { id: query, question, status: 'open', asker_id: askerId, budget_usdc: budgetUsdc, answer: null, responder_id: null, response_time_ms: null, rating: null, created_at: new Date().toISOString(), expires_at: expiresAt },
-    responders: responderList.length, // show found count, not notified count
+    responders: responderList.length,
   };
 }
 

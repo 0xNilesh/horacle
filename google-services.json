@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "953388192273",
+    "project_id": "horacle-609bf",
+    "storage_bucket": "horacle-609bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:953388192273:android:3eafbbbb624677422017b0",
+        "android_client_info": {
+          "package_name": "com.horacle.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1hrudae_xl3qF_I1HUP1T6Qeb83HOjww"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
