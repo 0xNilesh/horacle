@@ -17,6 +17,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { getUser, type HoracleUser } from '@/lib/auth';
 import { registerForPushNotifications } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
+import { dynamicClient } from '@/lib/dynamic';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -114,6 +115,7 @@ function RootLayoutNav() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <dynamicClient.reactNative.WebView />
       <Stack>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

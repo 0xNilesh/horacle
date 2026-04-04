@@ -5,8 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getUser, clearUser, type HoracleUser } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { reverseGeocode } from '@/lib/geocode';
-import { getWorldUsername } from '@/lib/username';
 import { getCurrentLocation } from '@/lib/location';
+import { useDynamic, showDynamicAuth, dynamicClient } from '@/lib/dynamic';
+import { saveWalletAddress } from '@/lib/wallet';
 import { router } from 'expo-router';
 
 export default function ProfileScreen() {
@@ -18,6 +19,36 @@ export default function ProfileScreen() {
   const [queryCount, setQueryCount] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
+
+  // Dynamic wallet
+  const dynamicState = useDynamic();
+  const connectedWallets = dynamicState?.wallets?.userWallets || [];
+  const primaryWallet = dynamicState?.wallets?.primary;
+  const walletAddress = primaryWallet?.address || connectedWallets?.[0]?.address;
+
+  // Auto-create embedded wallet if authenticated but no wallet
+  useEffect(() => {
+    const autoCreate = async () => {
+      if (dynamicState?.auth?.token && !walletAddress) {
+        console.log('[Profile] Auth exists but no wallet — creating embedded wallet...');
+        try {
+          await dynamicState.wallets.embedded.createWallet({ chain: 'Evm' });
+          console.log('[Profile] Embedded wallet created');
+        } catch (err) {
+          console.log('[Profile] Create wallet error:', err);
+        }
+      }
+    };
+    autoCreate();
+  }, [dynamicState?.auth?.token, walletAddress]);
+
+  // Save wallet to Supabase when connected
+  useEffect(() => {
+    if (walletAddress && user) {
+      saveWalletAddress(walletAddress);
+      console.log('[Profile] Wallet saved:', walletAddress);
+    }
+  }, [walletAddress, user]);
 
   useEffect(() => {
     loadProfile();
@@ -154,6 +185,38 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Wallet */}
+        {walletAddress ? (
+          <View style={s.walletCard}>
+            <View style={s.walletHeader}>
+              <Text style={s.walletLabel}>WALLET CONNECTED</Text>
+              <View style={s.walletDot} />
+            </View>
+            <Text style={s.walletAddress} numberOfLines={1}>{walletAddress}</Text>
+            <TouchableOpacity
+              style={s.disconnectBtn}
+              onPress={async () => {
+                try {
+                  await dynamicClient.auth.logout();
+                  console.log('[Profile] Wallet disconnected');
+                } catch (err) {
+                  console.log('[Profile] Disconnect error:', err);
+                }
+              }}
+            >
+              <Text style={s.disconnectText}>Disconnect</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={s.connectWalletBtn}
+            onPress={() => showDynamicAuth()}
+          >
+            <Text style={s.connectWalletText}>Connect Wallet</Text>
+            <Text style={s.connectWalletHint}>Required for earning & payments</Text>
+          </TouchableOpacity>
+        )}
+
         {/* ID Card */}
         <View style={s.idCard}>
           {username && (
@@ -166,6 +229,12 @@ export default function ProfileScreen() {
             <Text style={s.idLabel}>WORLD ID</Text>
             <Text style={s.idValue} numberOfLines={1}>{user.world_id_nullifier.slice(0, 16)}...</Text>
           </View>
+          {walletAddress && (
+            <View style={s.idRow}>
+              <Text style={s.idLabel}>WALLET</Text>
+              <Text style={s.idValue} numberOfLines={1}>{walletAddress.slice(0, 16)}...</Text>
+            </View>
+          )}
           {placeName ? (
             <View style={s.idRow}>
               <Text style={s.idLabel}>LOCATION</Text>
@@ -256,6 +325,24 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(167,139,250,0.1)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)',
   },
   verifiedText: { color: '#a78bfa', fontSize: 12, fontWeight: '600' },
+
+  walletCard: {
+    padding: 16, borderRadius: 14, marginBottom: 16,
+    backgroundColor: 'rgba(167,139,250,0.06)', borderWidth: 1, borderColor: 'rgba(167,139,250,0.2)',
+  },
+  walletHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  walletLabel: { fontSize: 10, color: 'rgba(167,139,250,0.6)', letterSpacing: 1.5, fontFamily: 'SpaceMono' },
+  walletDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#a78bfa' },
+  walletAddress: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontFamily: 'SpaceMono', marginBottom: 8 },
+  disconnectBtn: { alignSelf: 'flex-start' },
+  disconnectText: { color: 'rgba(255,100,100,0.6)', fontSize: 12 },
+  connectWalletBtn: {
+    padding: 20, borderRadius: 14, marginBottom: 16, alignItems: 'center',
+    borderWidth: 1.5, borderColor: 'rgba(167,139,250,0.25)', borderStyle: 'dashed',
+    backgroundColor: 'rgba(167,139,250,0.04)',
+  },
+  connectWalletText: { color: '#a78bfa', fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  connectWalletHint: { color: 'rgba(255,255,255,0.2)', fontSize: 12 },
 
   idCard: {
     padding: 16, borderRadius: 14, marginBottom: 16,

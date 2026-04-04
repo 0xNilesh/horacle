@@ -4,9 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { verifyWithWorldID, verifyProofOnBackend } from '@/lib/worldid';
-import { registerUser } from '@/lib/auth';
+import { registerUser, getUser } from '@/lib/auth';
+import { useDynamic, showDynamicAuth } from '@/lib/dynamic';
 
-type VerifyState = 'idle' | 'verifying' | 'registering' | 'success' | 'error';
+type VerifyState = 'idle' | 'verifying' | 'registering' | 'wallet' | 'success' | 'error';
 const { width, height } = Dimensions.get('window');
 
 // Floating particles like stars
@@ -145,15 +146,48 @@ export default function VerifyScreen() {
 
     if (!backendResult.success) { setErrorText(`Verification failed: ${backendResult.error}`); setState('error'); return; }
 
-    setStatusText('Creating account...');
     const nullifier = backendResult.nullifier_hash || result.proof.nullifier_hash;
     console.log('[Verify] Nullifier:', nullifier);
 
-    const walletAddress = `0x${nullifier.slice(2, 42)}`;
-    const r = await registerUser(nullifier, walletAddress);
+    // Create user immediately with placeholder wallet
+    setStatusText('Creating account...');
+    const placeholderWallet = `0x${nullifier.slice(2, 42)}`;
+    const r = await registerUser(nullifier, placeholderWallet);
     console.log('[Verify] Register result:', r.user?.id || r.error);
 
     if (r.error) { setErrorText(r.error); setState('error'); return; }
+
+    // Now offer wallet connection
+    setStoredNullifier(nullifier);
+    setState('wallet');
+  };
+
+  const [storedNullifier, setStoredNullifier] = useState('');
+  const { wallets, auth } = useDynamic();
+
+  const handleConnectWallet = () => {
+    setStatusText('Opening wallet...');
+    showDynamicAuth();
+  };
+
+  // Watch for wallet connection after Dynamic login
+  useEffect(() => {
+    if (state === 'wallet' && wallets && wallets.length > 0) {
+      completeRegistration(wallets[0].address);
+    }
+  }, [wallets, state]);
+
+  const completeRegistration = async (walletAddress: string) => {
+    setState('registering');
+    setStatusText('Connecting wallet...');
+
+    // Update wallet address in Supabase
+    const { supabase } = await import('@/lib/supabase');
+    const user = await getUser();
+    if (user) {
+      await supabase.from('users').update({ wallet_address: walletAddress }).eq('id', user.id);
+    }
+
     setState('success'); setStatusText("You're in.");
     setTimeout(() => router.replace('/(tabs)'), 1200);
   };
@@ -229,6 +263,35 @@ export default function VerifyScreen() {
             <ActivityIndicator size="large" color="#a78bfa" />
             <Text style={s.statusLabel}>{statusText}</Text>
             {state === 'verifying' && <Text style={s.statusHint}>Complete verification in World App</Text>}
+          </View>
+        )}
+
+        {state === 'wallet' && (
+          <View style={s.statusWrap}>
+            <View style={s.walletStep}>
+              <Text style={s.walletStepIcon}>🛡️ ✓</Text>
+              <Text style={s.walletStepDone}>World ID Verified</Text>
+            </View>
+
+            <Text style={s.walletTitle}>Connect Your Wallet</Text>
+            <Text style={s.walletDesc}>You need a wallet to earn and pay for answers</Text>
+
+            <TouchableOpacity style={s.walletBtn} onPress={handleConnectWallet} activeOpacity={0.85}>
+              <LinearGradient colors={['#a78bfa', '#7c3aed']} style={s.walletBtnGradient}>
+                <Text style={s.walletBtnText}>Connect or Create Wallet</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.skipWalletBtn}
+              onPress={() => {
+                setState('success');
+                setStatusText("You're in.");
+                setTimeout(() => router.replace('/(tabs)'), 1200);
+              }}
+            >
+              <Text style={s.skipWalletText}>Skip for now</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -323,4 +386,16 @@ const s = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '500' },
 
   version: { color: 'rgba(255,255,255,0.08)', fontSize: 10, fontFamily: 'SpaceMono', textAlign: 'center', paddingBottom: 14 },
+
+  // Wallet step
+  walletStep: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
+  walletStepIcon: { fontSize: 16 },
+  walletStepDone: { color: 'rgba(167,139,250,0.6)', fontSize: 13, fontWeight: '600' },
+  walletTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginBottom: 6 },
+  walletDesc: { color: 'rgba(255,255,255,0.3)', fontSize: 13, textAlign: 'center', marginBottom: 24 },
+  walletBtn: { borderRadius: 16, overflow: 'hidden', width: '100%' },
+  walletBtnGradient: { paddingVertical: 18, alignItems: 'center', borderRadius: 16 },
+  walletBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  skipWalletBtn: { marginTop: 16, padding: 8 },
+  skipWalletText: { color: 'rgba(255,255,255,0.2)', fontSize: 12 },
 });

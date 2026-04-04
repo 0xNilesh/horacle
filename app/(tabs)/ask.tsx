@@ -7,6 +7,8 @@ import { getUser, type HoracleUser } from '@/lib/auth';
 import { askQuestion, pollQuery, rateAnswer, type Query } from '@/lib/queries';
 import { searchPlace, reverseGeocode, type GeoResult } from '@/lib/geocode';
 import { supabase } from '@/lib/supabase';
+import { hasRealWallet } from '@/lib/wallet';
+import { Alert } from 'react-native';
 
 type AskState = 'input' | 'searching' | 'waiting' | 'answered' | 'error' | 'expired';
 
@@ -105,6 +107,13 @@ export default function AskScreen() {
       setStatusText('Verify with World ID first');
       setState('error');
       return;
+    }
+
+    // Check wallet (will be needed for payment in Phase 5)
+    // For now just warn, don't block
+    const hasWallet = await hasRealWallet();
+    if (!hasWallet) {
+      console.log('[Ask] No real wallet connected — proceeding anyway (payment will fail later)');
     }
 
     setState('searching');
