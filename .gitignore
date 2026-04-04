@@ -39,3 +39,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# env
+.env
+.env.*
+
+# Next.js
+.next/
+
+# Skills / agents
+.agents/
+.claude
