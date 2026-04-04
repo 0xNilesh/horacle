@@ -13,18 +13,24 @@ export default function ActivityScreen() {
   const [myQuestions, setMyQuestions] = useState<any[]>([]);
   const [myAnswers, setMyAnswers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     getUser().then((u) => {
       setUser(u);
       if (u) fetchAll(u.id);
     });
+    const tickInterval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(tickInterval);
   }, []);
 
   const fetchAll = async (userId: string) => {
     setLoading(true);
 
     // My questions (as asker)
+    // Expire stale queries first
+    await supabase.rpc('expire_stale');
+
     const { data: asked } = await supabase
       .from('queries')
       .select('*')
@@ -106,25 +112,33 @@ export default function ActivityScreen() {
           </View>
         )}
 
-        {items.map((q) => (
+        {items.map((q) => {
+          const isExpired = q.status === 'expired' || (q.status === 'open' && new Date(q.expires_at) < new Date());
+          const displayStatus = q.status === 'answered' ? 'answered' : isExpired ? 'expired' : q.status;
+
+          return (
           <View key={q.id} style={s.card}>
             {/* Status badge */}
             <View style={s.cardTop}>
               <View style={[
                 s.statusBadge,
-                q.status === 'answered' && s.statusAnswered,
-                q.status === 'open' && s.statusOpen,
-                q.status === 'expired' && s.statusExpired,
+                displayStatus === 'answered' && s.statusAnswered,
+                displayStatus === 'open' && s.statusOpen,
+                displayStatus === 'expired' && s.statusExpired,
               ]}>
                 <Text style={[
                   s.statusText,
-                  q.status === 'answered' && s.statusTextAnswered,
-                  q.status === 'open' && s.statusTextOpen,
+                  displayStatus === 'answered' && s.statusTextAnswered,
+                  displayStatus === 'open' && s.statusTextOpen,
                 ]}>
-                  {q.status === 'answered' ? '✓ ANSWERED' : q.status === 'open' ? '⏳ WAITING' : '✕ EXPIRED'}
+                  {displayStatus === 'answered' ? '✓ ANSWERED' : displayStatus === 'open' ? '⏳ WAITING' : '✕ EXPIRED'}
                 </Text>
               </View>
-              <Text style={s.timeAgo}>{timeAgo(q.created_at)}</Text>
+              <Text style={s.timeAgo}>
+                {displayStatus === 'open'
+                  ? `⏱ ${Math.max(0, Math.floor((new Date(q.expires_at).getTime() - Date.now()) / 60000))}m left`
+                  : timeAgo(q.created_at)}
+              </Text>
             </View>
 
             {/* Question */}
@@ -153,7 +167,8 @@ export default function ActivityScreen() {
               )}
             </View>
           </View>
-        ))}
+          );
+        })}
 
         <View style={{ height: 40 }} />
       </ScrollView>

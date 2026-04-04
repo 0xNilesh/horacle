@@ -126,17 +126,33 @@ export default function VerifyScreen() {
   }, []);
 
   const handleVerify = async () => {
+    console.log('[Verify] Starting verification, appId:', appId);
     if (!appId || appId === 'app_xxxxx') { setErrorText('Set EXPO_PUBLIC_APP_ID in .env first'); setState('error'); return; }
+
     setState('verifying'); setStatusText('Opening World App...'); setErrorText('');
+    console.log('[Verify] Calling verifyWithWorldID...');
+
     const result = await verifyWithWorldID(appId, 'register');
+    console.log('[Verify] Bridge result:', result.success, result.error || '');
+
     if (!result.success || !result.proof) { setErrorText(result.error || 'Verification failed'); setState('error'); return; }
+
     setState('registering'); setStatusText('Verifying proof...');
+    console.log('[Verify] Calling verifyProofOnBackend...');
+
     const backendResult = await verifyProofOnBackend(appId, 'register', result.proof);
+    console.log('[Verify] Backend result:', backendResult.success, backendResult.error || '');
+
     if (!backendResult.success) { setErrorText(`Verification failed: ${backendResult.error}`); setState('error'); return; }
+
     setStatusText('Creating account...');
     const nullifier = backendResult.nullifier_hash || result.proof.nullifier_hash;
+    console.log('[Verify] Nullifier:', nullifier);
+
     const walletAddress = `0x${nullifier.slice(2, 42)}`;
     const r = await registerUser(nullifier, walletAddress);
+    console.log('[Verify] Register result:', r.user?.id || r.error);
+
     if (r.error) { setErrorText(r.error); setState('error'); return; }
     setState('success'); setStatusText("You're in.");
     setTimeout(() => router.replace('/(tabs)'), 1200);

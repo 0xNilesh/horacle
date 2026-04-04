@@ -15,6 +15,9 @@ export interface HoracleUser {
 
 export async function saveUser(user: HoracleUser): Promise<void> {
   await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(user));
+  // Also save user ID for background task
+  const { setBgUserId } = await import('../tasks/location-task');
+  await setBgUserId(user.id);
 }
 
 export async function getUser(): Promise<HoracleUser | null> {
@@ -29,6 +32,8 @@ export async function getUser(): Promise<HoracleUser | null> {
 
 export async function clearUser(): Promise<void> {
   await SecureStore.deleteItemAsync(AUTH_KEY);
+  const { clearBgUserId } = await import('../tasks/location-task');
+  await clearBgUserId();
 }
 
 /**

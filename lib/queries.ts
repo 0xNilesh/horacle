@@ -120,7 +120,8 @@ async function notifyResponders(
       return 0;
     }
 
-    console.log(`[Push] Sent to ${messages.length} responders`);
+    const result = await res.json();
+    console.log(`[Push] Sent to ${messages.length} responders, response:`, JSON.stringify(result));
     return messages.length;
   } catch (err) {
     console.error('[Push] Error:', err);

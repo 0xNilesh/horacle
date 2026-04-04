@@ -3,10 +3,18 @@ import * as SecureStore from 'expo-secure-store';
 import { createClient } from '@supabase/supabase-js';
 import { LOCATION_TASK_NAME } from '../lib/location';
 
-// IMPORTANT: Must be imported at module level in _layout.tsx
+// Dedicated key just for the background task — simpler than parsing JSON
+const BG_USER_ID_KEY = 'horacle_bg_user_id';
 
-// We create a standalone Supabase client here because this task
-// runs in a background context where normal imports may not be available
+// Export so other code can set it
+export async function setBgUserId(userId: string) {
+  await SecureStore.setItemAsync(BG_USER_ID_KEY, userId);
+}
+
+export async function clearBgUserId() {
+  await SecureStore.deleteItemAsync(BG_USER_ID_KEY);
+}
+
 function getSupabase() {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
   const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -31,13 +39,20 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   const loc = locations[0];
   if (!loc) return;
 
-  // Get user ID from storage
+  // Read user ID from dedicated key
   let userId: string | null = null;
   try {
-    const userData = await SecureStore.getItemAsync('horacle_user');
-    if (userData) {
-      const user = JSON.parse(userData);
-      userId = user.id;
+    userId = await SecureStore.getItemAsync(BG_USER_ID_KEY);
+
+    // Fallback: try the main user object
+    if (!userId) {
+      const userData = await SecureStore.getItemAsync('horacle_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+        // Save to dedicated key for next time
+        if (userId) await SecureStore.setItemAsync(BG_USER_ID_KEY, userId);
+      }
     }
   } catch {
     console.error('[BG Location] Could not read user from storage');
@@ -50,13 +65,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   }
 
   const supabase = getSupabase();
-  if (!supabase) {
-    console.error('[BG Location] No Supabase client');
-    return;
-  }
+  if (!supabase) return;
 
   try {
-    // Update user_locations (real-time position)
     const { error: locError } = await supabase.rpc('upsert_location', {
       p_user_id: userId,
       p_lng: loc.coords.longitude,

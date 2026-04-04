@@ -51,12 +51,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="spike"
+        name="profile"
         options={{
-          title: 'Tests',
-          tabBarIcon: ({ color }) => <TabBarIcon name="flask" color={color} />,
-          href: __DEV__ ? undefined : null, // hide in production
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
         }}
+      />
+      <Tabs.Screen
+        name="spike"
+        options={{ href: null }}
       />
     </Tabs>
   );

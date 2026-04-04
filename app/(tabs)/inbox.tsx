@@ -1,6 +1,6 @@
 import { StyleSheet, TouchableOpacity, ScrollView, TextInput, RefreshControl } from 'react-native';
 import { Text, View } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { getUser, type HoracleUser } from '@/lib/auth';
@@ -13,6 +13,7 @@ export default function InboxScreen() {
   const [answerText, setAnswerText] = useState('');
   const [submitted, setSubmitted] = useState<Set<string>>(new Set());
   const [refreshing, setRefreshing] = useState(false);
+  const [tick, setTick] = useState(0); // forces re-render every second for timers
 
   useEffect(() => {
     getUser().then((u) => {
@@ -24,7 +25,9 @@ export default function InboxScreen() {
     if (!user) return;
     fetchQueries();
     const interval = setInterval(fetchQueries, 4000);
-    return () => clearInterval(interval);
+    // Tick every second to update timers
+    const tickInterval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => { clearInterval(interval); clearInterval(tickInterval); };
   }, [user]);
 
   const fetchQueries = async () => {

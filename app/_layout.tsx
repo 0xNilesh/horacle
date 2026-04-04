@@ -45,6 +45,12 @@ export default function RootLayout() {
       setUser(u);
 
       if (u) {
+        // Ensure background task has user ID (survives app kill)
+        try {
+          const { setBgUserId } = await import('../tasks/location-task');
+          await setBgUserId(u.id);
+        } catch {}
+
         // Register for push notifications and save token
         try {
           const token = await registerForPushNotifications();

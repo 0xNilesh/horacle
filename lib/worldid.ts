@@ -99,6 +99,10 @@ export async function verifyWithWorldID(
           const decrypted = decryptAes.decrypt(respCiphertext);
           const proof = JSON.parse(new TextDecoder().decode(decrypted));
 
+          // Log ALL fields to see if wallet address is included
+          console.log('[WorldID] Full bridge response keys:', Object.keys(proof));
+          console.log('[WorldID] Full bridge response:', JSON.stringify(proof));
+
           if (proof.error_code) {
             return { success: false, error: proof.error_code };
           }

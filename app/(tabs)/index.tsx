@@ -109,6 +109,11 @@ export default function HomeScreen() {
         clearInterval(interval);
         return;
       }
+      // If "Always" mode (>30 days remaining), don't show countdown
+      if (remaining > 30 * 24 * 3600000) {
+        setTimeLeft('Always On');
+        return;
+      }
       const h = Math.floor(remaining / 3600000);
       const m = Math.floor((remaining % 3600000) / 60000);
       const sec = Math.floor((remaining % 60000) / 1000);
@@ -190,6 +195,10 @@ export default function HomeScreen() {
         p_lat: loc.lat,
         p_accuracy: loc.accuracy,
       });
+
+      // Ensure background task has the user ID
+      const { setBgUserId } = await import('../../tasks/location-task');
+      await setBgUserId(currentUser.id);
 
       // Start background tracking
       const { startLiveTracking } = await import('@/lib/location');
@@ -303,8 +312,8 @@ export default function HomeScreen() {
           {/* Timer when live */}
           {isLive && timeLeft ? (
             <View style={s.timerCard}>
-              <Text style={s.timerLabel}>{DURATIONS[selectedDuration].minutes >= 52560000 ? 'STATUS' : 'TIME REMAINING'}</Text>
-              <Text style={s.timerValue}>{DURATIONS[selectedDuration].minutes >= 52560000 ? 'Always On' : timeLeft}</Text>
+              <Text style={s.timerLabel}>{timeLeft === 'Always On' ? 'STATUS' : 'TIME REMAINING'}</Text>
+              <Text style={s.timerValue}>{timeLeft}</Text>
             </View>
           ) : null}
 
@@ -349,14 +358,9 @@ export default function HomeScreen() {
           </View>
 
           {/* Footer */}
-          {user && (
-            <View style={s.footer}>
-              <Text style={s.footerId}>ID: {user.world_id_nullifier.slice(0, 14)}...</Text>
-              <TouchableOpacity onPress={async () => { await clearUser(); router.replace('/(auth)/verify'); }}>
-                <Text style={s.logout}>Sign out</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <View style={s.footer}>
+            <Text style={s.footerId}>Horacle v1.0</Text>
+          </View>
 
         </Animated.View>
       </ScrollView>

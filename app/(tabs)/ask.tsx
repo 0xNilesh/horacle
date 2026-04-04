@@ -61,6 +61,9 @@ export default function AskScreen() {
   }, []);
 
   const fetchRecent = async (userId: string) => {
+    // Expire stale queries first
+    await supabase.rpc('expire_stale');
+
     const { data } = await supabase
       .from('queries')
       .select('*')
@@ -311,7 +314,13 @@ export default function AskScreen() {
           {recentQueries.length > 0 && (
             <View style={s.recentSection}>
               <Text style={s.label}>YOUR QUESTIONS</Text>
-              {recentQueries.map((q) => (
+              {recentQueries.map((q) => {
+                const isExpired = q.status === 'open' && new Date(q.expires_at) < new Date();
+                const timeLeft = q.status === 'open' && !isExpired
+                  ? Math.max(0, Math.round((new Date(q.expires_at).getTime() - Date.now()) / 60000))
+                  : 0;
+
+                return (
                 <View key={q.id} style={s.recentCard}>
                   <Text style={s.recentQuestion}>{q.question}</Text>
                   {q.status === 'answered' ? (
@@ -319,13 +328,16 @@ export default function AskScreen() {
                       <Text style={s.recentAnswerLabel}>ANSWER</Text>
                       <Text style={s.recentAnswer}>{q.answer}</Text>
                     </View>
+                  ) : isExpired || q.status === 'expired' ? (
+                    <Text style={s.recentExpired}>✕ Expired — no one answered</Text>
                   ) : q.status === 'open' ? (
-                    <Text style={s.recentPending}>⏳ Waiting for answer...</Text>
+                    <Text style={s.recentPending}>⏳ Waiting... {timeLeft}m left</Text>
                   ) : (
                     <Text style={s.recentExpired}>✕ Expired</Text>
                   )}
                 </View>
-              ))}
+              );
+              })}
             </View>
           )}
 
@@ -352,6 +364,10 @@ export default function AskScreen() {
           <Text style={s.waitingTitle}>Waiting for answers...</Text>
           <Text style={s.waitingSub}>{statusText}</Text>
           <Text style={s.waitingQuestion}>"{currentQuery?.question}"</Text>
+          <TouchableOpacity style={s.backBtn} onPress={resetState}>
+            <Text style={s.backBtnText}>Ask another question</Text>
+          </TouchableOpacity>
+          <Text style={s.waitingHint}>You'll see the answer in Activity tab</Text>
         </View>
       )}
 
@@ -543,6 +559,12 @@ const s = StyleSheet.create({
   waitingTitle: { color: '#fff', fontSize: 20, fontWeight: '700' },
   waitingSub: { color: 'rgba(167,139,250,0.6)', fontSize: 13 },
   waitingQuestion: { color: 'rgba(255,255,255,0.3)', fontSize: 14, fontStyle: 'italic', textAlign: 'center', paddingHorizontal: 20, marginTop: 8 },
+  backBtn: {
+    marginTop: 24, paddingVertical: 12, paddingHorizontal: 28, borderRadius: 12,
+    borderWidth: 1, borderColor: 'rgba(167,139,250,0.25)',
+  },
+  backBtnText: { color: '#a78bfa', fontWeight: '600', fontSize: 14 },
+  waitingHint: { color: 'rgba(255,255,255,0.15)', fontSize: 11, marginTop: 8 },
 
   // Answer
   answerBadge: {
