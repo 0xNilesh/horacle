@@ -140,11 +140,12 @@ export default function VerifyScreen() {
     <View style={s.container}>
       <View style={s.bgBlob1} />                                                                                      
       <View style={s.bgBlob2} />
-      
+
       {/* Center */}
       <Animated.View style={[s.center, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
         <FloatingOrb />
         <Text style={s.title}>Horacle</Text>
+        <Text style={s.subtitle}>The Human Oracle</Text>
         <Text style={s.tagline}>Real-time intelligence{'\n'}from verified humans</Text>
 
         <View style={s.pillRow}>

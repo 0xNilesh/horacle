@@ -1,45 +1,119 @@
 # Horacle — The Human Oracle
 
-> Every human is an oracle. Your knowledge, your location, your eyes — monetized in real-time.
+> The internet has data oracles. Blockchains have price oracles. **We built the human oracle.**
+
+## Every human is an oracle.
+
+Your eyes. Your location. Your knowledge. Right now, someone needs to know what's happening where you are. **Horacle lets them ask you — and pays you for answering.**
+
+"Is the beach crowded?" — someone at the beach earns $0.05 for saying "Packed, come after 4pm."
+
+"How long is the DMV line?" — someone in line earns $0.05 for saying "45 minutes."
+
+"Did the food truck show up today?" — someone on that street earns $0.05 for saying "Yeah, it's here."
+
+**Real humans. Real-time. Real answers. Real money.**
+
+No AI hallucinations. No reviews from 6 months ago. No guessing. Just a verified human who's physically there, answering in 10 seconds.
+
+---
 
 ## What is Horacle?
 
-**Horacle = Human + Oracle.** In a world of AI hallucinations and stale reviews, the most reliable source of truth is a verified human who's physically there.
+**Horacle = Human + Oracle.** A real-time intelligence marketplace where verified humans earn micropayments by answering questions about locations they're physically at.
 
-Horacle turns every person into a real-time oracle. Go Live at any location, and you become the ground truth for that place. When someone asks "Is the beach crowded?" or "Did the food truck show up?" — you're the oracle. You answer in 10 seconds, you earn $0.05. The knowledge lives in you, not in a database.
+### The Problem
 
-**The internet has data oracles. Blockchains have price oracles. Horacle is the human oracle.**
+No app answers **"what's happening at a place right now?"**
 
-No app answers "what's happening at a place right now." Google reviews are months old. ChatGPT guesses. Horacle connects you with verified humans — real oracles — who are at the location RIGHT NOW. Verified by World ID. Paid via Circle nanopayments. Gasless.
+| Source | Problem |
+|--------|---------|
+| Google Reviews | 6 months old. "Great restaurant!" — but is there a table *right now*? |
+| ChatGPT | Hallucinates. Can't know the chef left last month. |
+| Calling the place | Most don't answer. "Is the parking lot full?" isn't something you call about. |
+| Social media | Noise. No verified signal. |
 
-### How It Works
+### The Solution
 
-**For the Asker:**
-1. Type a question: "Is the beach crowded right now?"
-2. Pick a location (your GPS or search any place)
-3. Horacle finds verified humans within 300m of that location
+**Make every human an oracle for their location.**
+
+You're at the beach → You're the beach oracle.
+You're in a queue → You're the queue oracle.
+You're at a restaurant → You're the restaurant oracle.
+
+Your phone knows where you are. World ID proves you're human. Circle pays you instantly. **You earn money from simply being somewhere.**
+
+---
+
+## How It Works
+
+### You want to know something → Ask
+
+```
+1. Type: "Is the beach crowded right now?"
+2. Pick location (GPS or search any place)
+3. Horacle finds verified humans within 300m
 4. Someone replies in ~10 seconds
-5. You pay $0.05 via Circle nanopayments (gasless)
+5. You pay $0.05 (gasless, via Circle nanopayments)
+```
 
-**For the Earner:**
+### You want to earn → Go Live
+
+```
 1. Tap "Start Earning" at any location
-2. Background location tracking keeps you discoverable (even with app closed)
-3. Get push notifications when someone asks nearby
-4. Reply in 10 seconds, earn $0.05 instantly
-5. $0.05 for 8 seconds of effort = $22.50/hr equivalent
+2. Background tracking keeps you discoverable (even with app closed)
+3. Phone buzzes: "Someone's asking about the beach — $0.05"
+4. Reply in 10 seconds
+5. $0.05 for 8 seconds = $22.50/hr equivalent
+```
+
+You're not doing extra work. You're already there. Dead time becomes money.
+
+---
+
+## Why World ID?
+
+**Without proof of human, the system dies.** Bots would flood the network with fake answers to farm micropayments. One bot could claim to be at 1000 locations simultaneously.
+
+World ID ensures:
+- **One human = one oracle.** No sybil farming.
+- **Real reputation.** Your rating is tied to a unique human, not a disposable account.
+- **Trust.** When someone answers your question, you know a verified human said it.
+
+**Horacle breaks without World ID.** It's not an add-on — it's the foundation.
+
+## Why Circle Nanopayments?
+
+$0.05 per answer is **impossible** with traditional payment rails. Stripe charges $0.30 per transaction. Credit card fees exceed the payment.
+
+Circle's x402 nanopayments on World Chain make this viable:
+- **Gasless** — users sign, Circle settles
+- **$0.05 per query** — EIP-3009 `TransferWithAuthorization`
+- **Batch settlement** — Circle handles on-chain execution
+- **USDC** — stable, real money, not speculative tokens
+
+## Why Dynamic?
+
+Users need wallets but shouldn't think about wallets. Dynamic provides:
+- **Embedded wallets** — created on sign-up, no MetaMask needed
+- **EIP-712 signing** — user confirms payment with one tap
+- **Gateway deposits** — USDC into Circle Gateway for nanopayments
+- **Mobile-native** — React Native SDK, works in our Expo app
+
+---
 
 ## Tech Stack
 
 | Layer | Tech | Purpose |
 |-------|------|---------|
-| Mobile App | React Native + Expo | Cross-platform native app |
-| Identity | World ID 4.0 | Proof of unique human — prevents bots farming payments |
-| Wallet | Dynamic SDK | Embedded wallet creation + transaction signing |
-| Payments | Circle x402 Nanopayments | Gasless $0.05 micropayments on World Chain Sepolia |
-| Location | expo-location | Background GPS tracking every 15 seconds |
-| Geospatial | Supabase + PostGIS | Find live users within 300m via `ST_DWithin` |
-| Push | Firebase + Expo Notifications | Notify nearby humans when a question is asked |
-| Backend | Express + Node.js | x402-protected endpoints, payment settlement |
+| Mobile App | React Native + Expo | Native app with background services |
+| Identity | World ID 4.0 | Proof of unique human — the oracle must be real |
+| Wallet | Dynamic SDK | Embedded wallets + EIP-712 signing |
+| Payments | Circle x402 Nanopayments | Gasless $0.05 USDC on World Chain Sepolia |
+| Location | expo-location | Background GPS every 15 seconds |
+| Geospatial | Supabase + PostGIS | Find oracles within 300m via `ST_DWithin` |
+| Push | Firebase + Expo Notifications | Alert nearby oracles instantly |
+| Backend | Express + Node.js | x402-protected endpoints |
 
 ## Architecture
 
@@ -64,36 +138,45 @@ No app answers "what's happening at a place right now." Google reviews are month
 
 ## Key Flows
 
-### World ID Verification
-- Bridge protocol with AES-GCM encryption (pure JS via `@noble/ciphers`)
-- Deep links to World App for biometric verification
-- Proof verified via World's v4 API (`developer.world.org/api/v4/verify`)
-- One unique human per account — prevents sybil farming
-
-### Go Live + Background Location
-- `expo-location` `startLocationUpdatesAsync()` tracks GPS every 15 seconds
-- Works even when app is closed (Android foreground service)
-- Location upserted to Supabase `user_locations` table
-- PostGIS `ST_DWithin()` finds live users within radius
-
-### Query + Payment Flow
+### Becoming an Oracle (World ID)
 ```
-Asker asks question
-  → App signs EIP-712 payment (Dynamic wallet, gasless)
-  → Sends to x402-protected backend endpoint
-  → Circle Gateway settles payment
-  → PostGIS finds nearby live users
-  → Push notification sent via Firebase/Expo
-  → First responder answers, earns $0.05
-  → Asker sees answer with rating option
+Open app → Verify with World ID (biometric, one-time)
+  → Bridge protocol: AES-GCM encrypted session → deep link to World App
+  → Proof verified via World's v4 API
+  → One human, one oracle. Forever.
 ```
 
-### Circle x402 Nanopayments
-- Asker deposits USDC into Circle Gateway (one-time)
-- Questions trigger EIP-3009 `TransferWithAuthorization` signature
-- `GatewayWalletBatched` scheme on World Chain Sepolia
-- Backend uses `createGatewayMiddleware` for x402 verification + settlement
-- Responder earnings tracked in DB, batch settled daily
+### Going Live (Background Location)
+```
+Tap "Start Earning" → GPS captured → live session created
+  → expo-location tracks every 15 seconds (even when app is closed)
+  → Android foreground service survives app kill
+  → PostGIS indexes your position for instant discovery
+  → You are now a discoverable oracle.
+```
+
+### Asking the Oracle (x402 Payment)
+```
+Type question + pick location
+  → App calls x402-protected endpoint → gets 402
+  → Dynamic wallet signs EIP-3009 authorization (gasless)
+  → Retries with payment signature → Circle settles
+  → PostGIS: SELECT oracles WHERE ST_DWithin(location, 300m)
+  → Push notification to nearby oracles
+  → First oracle answers → earns $0.05
+  → Asker sees answer + rates it
+```
+
+### Daily Settlement (Batch Payouts)
+```
+Backend cron reads pending earnings from DB
+  → Pool wallet deposits into Circle Gateway
+  → GatewayClient.withdraw() to each oracle's wallet
+  → Circle settles (gasless)
+  → Oracles receive USDC
+```
+
+---
 
 ## Setup
 
@@ -133,7 +216,7 @@ PORT=3001
 ```
 
 ### Database
-Run `scripts/setup-db.sql` in Supabase SQL Editor to create all tables, PostGIS functions, and indexes.
+Run `scripts/setup-db.sql` in Supabase SQL Editor.
 
 ### Run
 ```bash
@@ -149,13 +232,19 @@ npx expo start --dev-client
 eas build --profile development --platform android
 ```
 
+---
+
 ## Bounty Eligibility
 
-| Track | Prize | Integration |
-|-------|-------|------------|
-| **World ID 4.0** | $8,000 | Every user verified via World ID — system breaks without it (bots farm payments). Proof validated on backend via v4 API. |
-| **Circle Nanopayments** | $6,000 | $0.05 per answer via x402 on World Chain Sepolia. EIP-3009 signed by user's wallet, settled by Circle Gateway. Gasless. |
-| **Dynamic Mobile** | $1,667 | Embedded wallet in React Native. Wallet creation, USDC transfers, EIP-712 signing, Gateway deposits. |
+| Track | Prize | Why Horacle qualifies |
+|-------|-------|----------------------|
+| **World ID 4.0** | $8,000 | Every oracle is World ID verified. The system breaks without it — bots would farm payments with fake answers. Proof validated server-side via v4 API. World ID is the foundation, not a feature. |
+| **Circle Nanopayments** | $6,000 | $0.05 per answer via x402 on World Chain Sepolia. EIP-3009 signed by user's Dynamic wallet. Circle Gateway settles. Gasless for all users. Without nanopayments, per-answer micropayments are economically impossible. |
+| **Dynamic Mobile** | $1,667 | Embedded wallet in React Native. Auto-created on signup. EIP-712 signing for x402 payments. USDC deposits to Circle Gateway. The wallet layer that makes payments frictionless. |
+
+**Total eligible: $15,667**
+
+---
 
 ## Project Structure
 
@@ -172,27 +261,29 @@ horacle/
 │   ├── answer/[queryId].tsx   # Answer screen (from notification)
 │   └── _layout.tsx            # Root layout, auth routing, Dynamic WebView
 ├── lib/
-│   ├── worldid.ts             # World ID bridge protocol
+│   ├── worldid.ts             # World ID bridge protocol (AES-GCM, pure JS)
 │   ├── dynamic.ts             # Dynamic wallet client
-│   ├── payment.ts             # x402 payment signing
+│   ├── payment.ts             # x402 payment signing + fallbacks
 │   ├── queries.ts             # Question CRUD + push notifications
-│   ├── location.ts            # GPS tracking
-│   ├── geocode.ts             # Place search + reverse geocode
-│   ├── auth.ts                # User auth persistence
+│   ├── location.ts            # GPS tracking + permissions
+│   ├── geocode.ts             # Place search + reverse geocode (Photon API)
+│   ├── auth.ts                # User auth persistence (SecureStore)
 │   ├── supabase.ts            # Database client
 │   └── wallet.ts              # Wallet management
 ├── tasks/
 │   └── location-task.ts       # Background location → Supabase
 ├── backend/
-│   ├── index.js               # Express + x402 middleware
-│   └── batch-settle.js        # Daily responder payout cron
+│   ├── index.js               # Express + x402 middleware + push notifications
+│   └── batch-settle.js        # Daily oracle payout cron
 └── scripts/
-    ├── setup-db.sql           # Full PostGIS schema
+    ├── setup-db.sql           # Full PostGIS schema + functions
     └── generate-wallets.ts    # Pool wallet generator
 ```
 
 ---
 
-*"The internet has data oracles. Blockchains have price oracles. We built the human oracle."*
+> *"The internet has data oracles. Blockchains have price oracles. We built the human oracle."*
+>
+> Every human knows something about where they are. Horacle turns that knowledge into real-time intelligence — verified, paid, and instant.
 
-## Built at ETHGlobal Cannes 2026
+**Built at ETHGlobal Cannes 2026**
