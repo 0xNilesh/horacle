@@ -39,8 +39,11 @@ export async function askWithPayment(
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
   try {
-    // Step 1: Call paid endpoint → get 402
-    const res1 = await fetch(`${apiUrl}/api/ask-paid`, { method: 'POST', headers, body });
+    // Step 1: Call paid endpoint → get 402 (5 second timeout)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res1 = await fetch(`${apiUrl}/api/ask-paid`, { method: 'POST', headers, body, signal: controller.signal });
+    clearTimeout(timeout);
 
     if (res1.status !== 402) {
       return await res1.json();

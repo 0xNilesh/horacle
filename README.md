@@ -102,6 +102,22 @@ Users need wallets but shouldn't think about wallets. Dynamic provides:
 
 ---
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/01-verify.jpeg" width="180" />
+  <img src="assets/screenshots/02-earn.jpeg" width="180" />
+  <img src="assets/screenshots/03-ask.jpeg" width="180" />
+  <img src="assets/screenshots/04-inbox.jpeg" width="180" />
+</p>
+<p align="center">
+  <img src="assets/screenshots/05-activity.jpeg" width="180" />
+  <img src="assets/screenshots/06-profile.jpeg" width="180" />
+  <img src="assets/screenshots/07-notification.jpeg" width="180" />
+</p>
+
+---
+
 ## Tech Stack
 
 | Layer | Tech | Purpose |

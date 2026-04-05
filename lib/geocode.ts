@@ -8,6 +8,7 @@ export interface GeoResult {
  * Reverse geocode — get place name from coordinates (free, Photon)
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  if (!lat || !lng) return '';
   try {
     const url = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&limit=1&lang=en`;
     console.log('[Geocode] Reverse:', url);
