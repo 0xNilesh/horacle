@@ -34,24 +34,34 @@ export default function AskScreen() {
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get user's location + reverse geocode + nearby count
+  const refreshNearbyCount = async (loc?: { lat: number; lng: number } | null) => {
+    const location = loc || myLocation;
+    if (!location) return;
+    try {
+      const { data } = await supabase.rpc('find_live_responders', {
+        p_lng: location.lng, p_lat: location.lat, p_radius_m: 1000,
+      });
+      setMyNearbyCount(data?.length || 0);
+    } catch {}
+  };
+
   useEffect(() => {
     (async () => {
       try {
         const loc = await getCurrentLocation();
         if (loc) {
           setMyLocation(loc);
-          const name = await reverseGeocode(loc.lat, loc.lng);
-          setMyPlaceName(name);
-          // Count nearby live people
-          const { data } = await supabase.rpc('find_live_responders', {
-            p_lng: loc.lng, p_lat: loc.lat, p_radius_m: 1000,
-          });
-          setMyNearbyCount(data?.length || 0);
+          reverseGeocode(loc.lat, loc.lng).then(setMyPlaceName);
+          refreshNearbyCount(loc);
         }
       } catch (err) {
         console.error('[Ask] Location error:', err);
       }
     })();
+
+    // Refresh nearby count every 10 seconds
+    const interval = setInterval(() => refreshNearbyCount(), 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

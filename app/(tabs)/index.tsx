@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Dimensions, TextInput } from 'react-native';
+import { StyleSheet, TouchableOpacity, ScrollView, Animated, Easing, Dimensions, TextInput, ActivityIndicator } from 'react-native';
 import { Text, View } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import * as Location from 'expo-location';
@@ -25,6 +25,7 @@ export default function HomeScreen() {
   const [timeLeft, setTimeLeft] = useState('');
   const [placeName, setPlaceName] = useState('');
   const [liveCount, setLiveCount] = useState(0);
+  const [loading, setLoading] = useState(true);
   const fadeIn = useRef(new Animated.Value(0)).current;
 
   const isLive = session?.status === 'live';
@@ -59,6 +60,7 @@ export default function HomeScreen() {
         reverseGeocode(loc.lat, loc.lng).then(setPlaceName);
         supabase.from('live_sessions').select('id', { count: 'exact', head: true }).eq('status', 'live').gt('expires_at', new Date().toISOString()).then(({ count }) => setLiveCount(count || 0));
       } else setError('Could not get location');
+      setLoading(false);
     })();
   }, []);
 
@@ -146,7 +148,11 @@ export default function HomeScreen() {
               { label: 'Rep', value: `${user?.reputation_score.toFixed(1) || '3.0'}` },
             ].map((stat) => (
               <View key={stat.label} style={s.statCard}>
-                <Text style={s.statValue}>{stat.value}</Text>
+                {!user ? (
+                  <ActivityIndicator size="small" color="#EEEDF5" />
+                ) : (
+                  <Text style={s.statValue}>{stat.value}</Text>
+                )}
                 <Text style={s.statLabel}>{stat.label}</Text>
               </View>
             ))}
@@ -155,11 +161,20 @@ export default function HomeScreen() {
           {/* Location */}
           <View style={s.locationCard}>
             <Text style={s.locationLabel}>Your position</Text>
-            {placeName ? <Text style={s.placeName}>{placeName}</Text> : null}
-            {location ? (
-              <Text style={s.coords}>{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</Text>
+            {loading ? (
+              <View style={s.loadingRow}>
+                <ActivityIndicator size="small" color="#7C5CFC" />
+                <Text style={s.coordsMuted}>Getting location...</Text>
+              </View>
+            ) : placeName ? (
+              <>
+                <Text style={s.placeName}>{placeName}</Text>
+                {location && <Text style={s.coords}>{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</Text>}
+              </>
             ) : error ? (
               <Text style={s.errorText}>{error}</Text>
+            ) : location ? (
+              <Text style={s.coords}>{location.lat.toFixed(6)}, {location.lng.toFixed(6)}</Text>
             ) : (
               <Text style={s.coordsMuted}>Acquiring...</Text>
             )}
@@ -273,6 +288,7 @@ const s = StyleSheet.create({
   placeName: { fontSize: 15, color: '#1A1A1E', fontWeight: '600', marginBottom: 4 },
   coords: { fontSize: 13, color: '#A0A0AB', fontFamily: 'SpaceMono' },
   coordsMuted: { fontSize: 13, color: '#D0D0D8', fontFamily: 'SpaceMono' },
+  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   errorText: { fontSize: 13, color: '#FF3B30' },
 
   durationRow: { flexDirection: 'row', gap: 8, marginBottom: 14, justifyContent: 'center' },
